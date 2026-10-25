@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0
+## 1.1.0
 
-- Provider contracts, transport, utilities and orchestration in four modules; explicit registries and no built-in provider dependency.
-  Compatibility: New release unit at 1.0.0. Moved types retain one definition; binary compatibility with the monolithic module is not promised.
+- Add neutral provider HTTP configuration, shared audio/media/socket/reranking utilities, AWS SigV4 signing and generic JSON media adapters; expose video-operation contracts in the provider module.
+  Compatibility: Additive core APIs and preserved facade exports. Packages using the new helpers require core from 1.1.0.

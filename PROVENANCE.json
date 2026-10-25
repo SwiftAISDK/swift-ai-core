@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-core",
-  "version": "1.0.0",
-  "releaseID": "modular-pilot",
+  "version": "1.1.0",
+  "releaseID": "modular-3",
   "source": {
-    "commit": "f91f47882ebaba0d602474fdd5ddc9f249eecce2",
-    "baseCommit": "f91f47882ebaba0d602474fdd5ddc9f249eecce2",
+    "commit": "7fc9b4cd72f8f83b75ba7eee2e38d37127539317",
+    "baseCommit": "7fc9b4cd72f8f83b75ba7eee2e38d37127539317",
     "workingTree": false,
-    "inputsSHA256": "9c1a85dfc8ba0dcbd4490ba630563ccf8f4888c8d4443f04fe0ccd406af10dda"
+    "inputsSHA256": "49b802ba4a30454f78c9886ab3114537ef659ab3e6db7775479b7351f6e3f0ab"
   },
   "dependencies": [],
   "changes": [
     {
-      "id": "modular-pilot",
-      "notes": "Provider contracts, transport, utilities and orchestration in four modules; explicit registries and no built-in provider dependency.",
-      "compatibility": "New release unit at 1.0.0. Moved types retain one definition; binary compatibility with the monolithic module is not promised."
+      "id": "remaining-package-extraction",
+      "notes": "Add neutral provider HTTP configuration, shared audio/media/socket/reranking utilities, AWS SigV4 signing and generic JSON media adapters; expose video-operation contracts in the provider module.",
+      "compatibility": "Additive core APIs and preserved facade exports. Packages using the new helpers require core from 1.1.0."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-core",
@@ -90,7 +90,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Porting/map.json",
-      "sha256": "fbb70afc991c8e87dd5aec1d29c49f0b43f9b77a32b3656ceaf8fdedd7f776ad"
+      "sha256": "d1e89dd99787d9ad762b9b147247072cb87b1b646a6b4c898f8b8735a9175162"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/README.md",
@@ -338,7 +338,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/VideoGenerationOperations.swift",
-      "sha256": "a090dd995a6eaa62ff3ff8e9b7d4c716a462a1fcf5135f944b8a6491d8df09c0"
+      "sha256": "ab493ec031eb6ed92cfb6a0ce937f50a18cf7027eefe2038a81802a6d923fa73"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/BatchResultDownloadSettings.swift",
@@ -461,6 +461,14 @@
       "sha256": "8427e9d6a94ca274d10342f8cc45f1b9cc11a13ac1f3ce3296bb3bdc58471d4c"
     },
     {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/VideoGenerationOperationContracts.swift",
+      "sha256": "95ee799631ee10240a66f76567e94cbf2430ceb7063b1f5f42033632280eeee9"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/AudioResponseUtilities.swift",
+      "sha256": "ecfa6818860a684eb4a21e05d37ccee3b50673e0f84af69d7de88d678c36dd28"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/BatchResultLines.swift",
       "sha256": "3e037abeca29d8959012efc340d291cf868e1ce9013084a8fce239f9344f439a"
     },
@@ -497,6 +505,10 @@
       "sha256": "95a831b96b542e545789663743371fdec7d37b7430814c7fe6053c467c907a14"
     },
     {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/GenericMediaModels.swift",
+      "sha256": "c98327715432cdb934fe3022c5ea60ceeb8ee0a805fc350c3ecf38049384c848"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/JSONInstructions.swift",
       "sha256": "3516da52ed324d9169ae103f3ad13ed113ae3a556b3224c4aa53b7b291b8f4a1"
     },
@@ -517,6 +529,10 @@
       "sha256": "c9965ae7e37a1f16bcfa65b6a5ac97bbfbf782718bc8e2faf8517938413b3040"
     },
     {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/MediaRequestUtilities.swift",
+      "sha256": "55f4398fb2330d9b503600f108f6a8b79e3773973843c406344fb82a3b935a35"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/MediaType.swift",
       "sha256": "19f5ae234048a532ba45e6424d02fad60b9c107c4615f726c42da91943fb05e5"
     },
@@ -533,6 +549,10 @@
       "sha256": "a6f4b42afdb023b6e798e2931c06d3567a257c06165c1407e96bc56d89530a33"
     },
     {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/RerankingParsing.swift",
+      "sha256": "d499ec9329d7b98f0cfaa6b13c7afc9a3a9ee1dd70bc115375281c6c1f54e014"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/ResponseMetadata.swift",
       "sha256": "2d57cb7378245a9457718dd1b57e511b54f3da0f0436c4c8b0dd3a11c2ae3005"
     },
@@ -543,6 +563,10 @@
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/SkillUploadMetadata.swift",
       "sha256": "ab2855ee8976702494d039649c8696dfbb19d7f260fb0225607dff85d4e77e38"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/SpeechSocketSession.swift",
+      "sha256": "6835d9055292b3aa37b5d1924611881a0d0647169e5fafc333e0cf9121423329"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/SpeechStreamEnvelope.swift",
@@ -571,6 +595,10 @@
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/WarningSerialization.swift",
       "sha256": "27284490db573b9a4fa5ba1c7971ff1411edd1c2238c4a95381a9f3a5dd14af4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/AWSSigV4.swift",
+      "sha256": "fbb094ac337bfef35bb2b2d1997f2efdf664d9c74441d8f9390a121cc9424b2c"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/DuplexWebSocketTransport.swift",
@@ -607,6 +635,10 @@
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderHTTPClient.swift",
       "sha256": "720badbfd8b9a1e8ed7507a7de67a9df42db8e5cde3be4e006287552270d89a6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderHTTPConfiguration.swift",
+      "sha256": "0aec6daf6a3893d1849f724eb2fc89450d6f71f902089acb6c3ed6f28a5ee8f1"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderURL.swift",
@@ -663,6 +695,10 @@
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/MultipartFormDataTests.swift",
       "sha256": "cde7d7dbc5404ca46728491e191fa6653c4c801e13a716974bc93df132a1d19a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/ProviderHTTPConfigurationTests.swift",
+      "sha256": "489f9f318c6598a20a796d2c2d00012a1a1b0af66807c0746f21c62c7cf0a475"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/RecordingTransport.swift",
