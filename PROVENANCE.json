@@ -1,0 +1,676 @@
+{
+  "schemaVersion": 1,
+  "package": "swift-ai-core",
+  "version": "1.0.0",
+  "releaseID": "modular-pilot",
+  "source": {
+    "commit": "f91f47882ebaba0d602474fdd5ddc9f249eecce2",
+    "baseCommit": "f91f47882ebaba0d602474fdd5ddc9f249eecce2",
+    "workingTree": false,
+    "inputsSHA256": "9c1a85dfc8ba0dcbd4490ba630563ccf8f4888c8d4443f04fe0ccd406af10dda"
+  },
+  "dependencies": [],
+  "changes": [
+    {
+      "id": "modular-pilot",
+      "notes": "Provider contracts, transport, utilities and orchestration in four modules; explicit registries and no built-in provider dependency.",
+      "compatibility": "New release unit at 1.0.0. Moved types retain one definition; binary compatibility with the monolithic module is not promised."
+    }
+  ],
+  "canonicalDirectory": "Packages/swift-ai-core",
+  "upstream": [
+    {
+      "name": "ai",
+      "reviewedVersion": "7.0.153",
+      "ledgerKind": "core",
+      "evidence": "Docs/CoreV6Parity.md",
+      "reviewStatus": "imported-reviewed-with-gaps",
+      "archiveIntegrity": "sha512-Ib8v374jWn9FXsjADXodRaP7fsMutlmPsbTLT5gYBDyadFcF9XxfYX1CSSxgSvE1r06MmOeYVwvQjFb3CcBi1Q==",
+      "sourceRef": "npm:ai@7.0.153",
+      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
+      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "contractFamilies": [
+        "ProviderV4 orchestration"
+      ],
+      "contractReview": "M5 pinned published declarations reviewed; native Swift protocols and typed factories are the compatibility contract. Retain existing behavior and documented gaps. npm gitHead absent; test snapshot is not matching-release evidence. See Docs/Migration/M5/upstream-review.json."
+    },
+    {
+      "name": "@ai-sdk/provider",
+      "reviewedVersion": "4.0.34",
+      "ledgerKind": "core",
+      "evidence": "Docs/CoreV6Parity.md",
+      "reviewStatus": "imported-reviewed-with-gaps",
+      "archiveIntegrity": "sha512-Ip7ZQBq/FiGpM1mmOVseTtX9PBjnzo0bLC41WTgBSBBRUBz6LhNFGbYaNUzI6hPm6ll1oNSPOAZc/q/z+3QZEQ==",
+      "sourceRef": "npm:@ai-sdk/provider@4.0.34",
+      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
+      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "contractFamilies": [
+        "ProviderV4",
+        "LanguageModelV4",
+        "EmbeddingModelV4",
+        "ImageModelV4",
+        "SpeechModelV4",
+        "TranscriptionModelV4"
+      ],
+      "contractReview": "M5 pinned published declarations reviewed; native Swift protocols and typed factories are the compatibility contract. Retain existing behavior and documented gaps. npm gitHead absent; test snapshot is not matching-release evidence. See Docs/Migration/M5/upstream-review.json."
+    },
+    {
+      "name": "@ai-sdk/provider-utils",
+      "reviewedVersion": "5.0.68",
+      "ledgerKind": "core",
+      "evidence": "Docs/CoreV6Parity.md",
+      "reviewStatus": "imported-reviewed-with-gaps",
+      "archiveIntegrity": "sha512-SASuC1DqSdWoYyYfpxbgPKm9VCnMP1VTahWY7WEYzi2QDmFdbw4runqmH7NKC33iB/INo+XbaN2hH3dXHSNQZw==",
+      "sourceRef": "npm:@ai-sdk/provider-utils@5.0.68",
+      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
+      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "contractFamilies": [
+        "ProviderV4 utilities"
+      ],
+      "contractReview": "M5 pinned published declarations reviewed; native Swift protocols and typed factories are the compatibility contract. Retain existing behavior and documented gaps. npm gitHead absent; test snapshot is not matching-release evidence. See Docs/Migration/M5/upstream-review.json."
+    }
+  ],
+  "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
+  "canonicalInputs": [
+    {
+      "canonicalPath": ".github/workflows/package-check.yml",
+      "sha256": "7ff448e130f7aed96c38accdf828b6d993997ebc5317358347e9a70a649e67ca"
+    },
+    {
+      "canonicalPath": "LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Package.swift",
+      "sha256": "dcab43286f22b33b2a306e524b9905bd66893bfac8b0c7e55c78289ec2d6323c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Porting/map.json",
+      "sha256": "fbb70afc991c8e87dd5aec1d29c49f0b43f9b77a32b3656ceaf8fdedd7f776ad"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/README.md",
+      "sha256": "d58c9348b49e058f0f67f4411ea0e07204c82e0e4ba3c6e44d45ad996d29c6ec"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AI.swift",
+      "sha256": "ba1be65ec7fe7e38e3d847b8af9ef4ac9ccd82a4d10da022769f1f663a08b315"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIAgent.swift",
+      "sha256": "de02a6743e9c73c8fae7aa6cc3c6984d74f87e7458be43bc195470a3c14288d3"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIChatTransport.swift",
+      "sha256": "36a0c8dc4295cab74225fa9b4cd19db5122456ed131aee3c35dae4d132f16d38"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIDecisionTelemetry.swift",
+      "sha256": "6bd98db1252d3b91868bfd6a7a73ca2545cd9b653c75aac0aba71dcfdf72e763"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIEvaluationTelemetry.swift",
+      "sha256": "861ad68ac3f52244239047c45e510aee86c8c49090551e751cfa7b2c652f5ae0"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeBatch.swift",
+      "sha256": "5866c071960b233cc93da16154d0d651de08ead9fcd6e6354f3ec57ba3876218"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeDecision.swift",
+      "sha256": "7ea0986f8e51f1ec9273f59b1e09cd4f0f66dedf61d80e94f05417526a092dd7"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeEvaluation.swift",
+      "sha256": "892be061ee8218c6b5a3969bc1e2b4f6a583bb0eea6782a35b13c29b786aa059"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateObject.swift",
+      "sha256": "51545ec4b1a9beaee392ad37b8ed4cab36fbd5c4f5cbf9453eb9d619b1c71a43"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateObjectTelemetry.swift",
+      "sha256": "12df41c71f6767962f6579585178da6b01b165d01bd3a4fe1e704800d5ed8a9b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateText.swift",
+      "sha256": "126bb17580cf6a580c6c3c3cfa7bcc7f7d1e8a64bae70361e9fcce6d4a9c3887"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeMedia.swift",
+      "sha256": "45f41e8a5f92a4984a2f6163fe5e64343719a47e8e203dbf2f2481f627e59cb8"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeObjectCallbacks.swift",
+      "sha256": "5112444ce654304eba269d9e7fd57ba0188067fa65323ff7c062bf874e394ad3"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeObjectStreamTelemetry.swift",
+      "sha256": "7239393faaf2e5dbbeb7880397ae573ab9c4bbddb9347986173086ebe021d287"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamEnumJSON.swift",
+      "sha256": "e786b54f49891fcbfc63b4d05ea26dfdda64db4f45d6c83907d81c66a1b295bb"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamObject.swift",
+      "sha256": "04ed5c57af91d68e78e42455adb6d34000cfa33eeab62d47dbb30f9e3d05f9ba"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamObjectArray.swift",
+      "sha256": "e61d1dae1e1fa6f17ed717db755edd80c423459d31ef12b0ca3f86f4c0292276"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamObjectSchema.swift",
+      "sha256": "3c6f65f36df20538a7875b92547de6eb011c0bb935f5924243b050e7b02acd93"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamText.swift",
+      "sha256": "03d6a36de38c12560ff95e081d0d299b6b08d3c2747ef363a282d152c8a4fe18"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamTextCompatibility.swift",
+      "sha256": "da33f430a8c8b496fbad1ddf0b82ec9638fed317a0dad16cfb5aa889879d370d"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamTextTelemetry.swift",
+      "sha256": "7fa119b749c8733a01b2b10aaa6327c099bd9fef6c897aea6026907acb10a6d2"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamingSpeech.swift",
+      "sha256": "ee3484cacc4757a3c59b642c6ebcad2aa0c73a6a949f202a5cd090c7de31ae2b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamingTranscription.swift",
+      "sha256": "60a259f72a573cc02e94a06028123f32058f85fc6256c178a8b5a7211c700361"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeTelemetryCalls.swift",
+      "sha256": "757d719b728b452517c794a30fea6dfe652e6d4f4c5a6e35c48967455876d5f5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeTelemetryEvent.swift",
+      "sha256": "3fcf2341583acc3ed7f4c7806188be8b010610fa3c96af545c723f59be7eed18"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIObjectDecoding.swift",
+      "sha256": "a16fb0b47b908f917be92eb3f880c3000e95e495c8f1e3d686611d13fcbff5d2"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIObjectGenerationSession.swift",
+      "sha256": "eadce79c437d3f2e54e63951bd9d07718cda2c4728f33778d9e644587c4e3543"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIObjectJSONTextExtraction.swift",
+      "sha256": "27652d2ca365a3dfe3654185f77810f75fb7d331b2d5e9ecff189d2516ed4420"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIObjectParsing.swift",
+      "sha256": "f249a2686fa4d30d116acebf2ff16990a19814dd01c607e61ce1a7bd91b05723"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIObjectPartialJSON.swift",
+      "sha256": "964f40787989d53130ca39e6aee947f9247c820a5bfe8f69f75c23101d3000e8"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIRealtimeSession.swift",
+      "sha256": "77e3373c4ec0be51650576996d67915ca134d6d097a51fa5fe35970d1f932010"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIRetryRuntime.swift",
+      "sha256": "ee76c43759754b51acee196bdac966da912174ad70dd550460b063e8129d7ac9"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIStreamTimeouts.swift",
+      "sha256": "940f8e6d9dc52206d21bf17e5e71681b9fd16df91bd3444e7a6222ec3abd2912"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITelemetryRuntime.swift",
+      "sha256": "5da09ea862f74ddfa1dcc3530c004f097fa88f993d3f75ecfb584818f825ac66"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITelemetrySerialization.swift",
+      "sha256": "22c0728d8aee089dd78ed977ea2b21962190b4164ba8da69f4db72c56b984916"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITokenUsageAndStreamRuntime.swift",
+      "sha256": "f5f9f3f78dd4915fa744d6369b2ec9851c1baf35f904111d2393b890c98a1a89"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIToolExecution.swift",
+      "sha256": "f3dfe9b6ff6a79a890869e93cacb596b2f8186ed62bffeeadd1974cadcd7d91a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreDecision.swift",
+      "sha256": "c3bcb74566d066bae684a666a8ce2d6e4a8d72e5310ebfedb0545c6a2af2c8e8"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreEvaluation.swift",
+      "sha256": "df5be00b14d76675e88102d70a828e1eaa58aa6c64a64392c3e3f38c59d8c9cf"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreObjectSchema.swift",
+      "sha256": "9289f12ea35ee62870384c1e05c28eb73b3ffd6fd5cc45bea81806131e80ad74"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreStreamingSpeech.swift",
+      "sha256": "ec5b680bcfd06025b5f073b52e1c31c2e4345119bf604c1aeabbedb07cb74b4f"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreTextObjectResults.swift",
+      "sha256": "c7b2aef7210db78c93b0e302dabf47397ce7c33439fc8a4aa7445c1c3a0126dc"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreTools.swift",
+      "sha256": "00e9577741f2831a94ae60c5ae727a49078aaac62b2810207ff6aaa0c3192e51"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CustomProvider.swift",
+      "sha256": "4b06a4debe2e96f69b4b22a5852d9d5acfa1e89a51612654fb26115c952262b0"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/DefaultSettingsMiddleware.swift",
+      "sha256": "4dd1c5d8766e3827d22347aed27f47f52a81a24223ac51273f6702d830ef8759"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/Errors.swift",
+      "sha256": "52e2d4137a57e78cdfb4f7ac1d152beb19558bd4ceba420bd07745735b88e952"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/Exports.swift",
+      "sha256": "4d6ac89d8290689fd85ec42b403b51ac50a6f882f02e3ca290fbd7ac96c4d805"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ExtractionMiddleware.swift",
+      "sha256": "ad5d1577fd95393bcc187f7eef630ad0ef0ab313c738a924bc98b7abb5f0698c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/MiddlewareTypes.swift",
+      "sha256": "dc4602c8a7d4a5b2cf136d44119a9fbb79181c5896632197c325f8ea96a6921d"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/MiddlewareWrapping.swift",
+      "sha256": "2ffb05ca402f60c826f6ed2aed92f0d3b0b4d878c9e7f4568df9afa4924ecfdb"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/Output.swift",
+      "sha256": "6c42f45732edd5030f9a67b8c1b348431b503299b2eb8dc22bf2ebd65cbb41e1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/PruneMessages.swift",
+      "sha256": "0486cfadad5dc008ae8b8860da7dcd2b97ba3627f9cae576102a9c1be1a77a75"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ResponseMessages.swift",
+      "sha256": "1070537fa1e894ea618e84b41d32e92be870ba02e95b00666706f33a85c21214"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ResultContent.swift",
+      "sha256": "b98c1e0f03227d443e27c145137d02080cdfb3b03e1922088bf7fc5001fc019e"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/SwiftNativeLanguageAPI.swift",
+      "sha256": "12eb28518dd03a97ba2e47f2376726f0d9a49dfbc13cfbf622e936920e787144"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/Telemetry.swift",
+      "sha256": "a6f8842483ec62a0823ed3f26af3abb9b5adea32ecbc68204aee23c864b48f82"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ToolCallConcurrency.swift",
+      "sha256": "daecf4ae8f8fa475339aacf97bd30226e1bd54dbff75744970566ee357543446"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ToolChoicePreparation.swift",
+      "sha256": "5ac6a7e65c4a6dbe03739fc57614dcb34aafcd62a91a4e6b024179649ff738f6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ToolInputExamplesMiddleware.swift",
+      "sha256": "0deb460f68995ab1a22124bddac447d5097b61f99b9dd44d28ef5d43abf42234"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ToolPreparation.swift",
+      "sha256": "1a8bb9eee3eaf9ab89f6e98a513293cd56b87d937f7064fe8d04d24b9677a8a1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/VideoGenerationOperations.swift",
+      "sha256": "a090dd995a6eaa62ff3ff8e9b7d4c716a462a1fcf5135f944b8a6491d8df09c0"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/BatchResultDownloadSettings.swift",
+      "sha256": "f772c3054a4ddb50287698bb7b14064a80f5773c53f5162a6add5dc3f59242c2"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/Core.swift",
+      "sha256": "e10c7a5d6b8052e8d970ca11340005612f751d44e13dacf0811b0c86b93fd410"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreAbort.swift",
+      "sha256": "aa7349c8caff85446a605f4168eac6865141bc629e780685efe53af0906f56f5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreAudioResults.swift",
+      "sha256": "92e2ac5d42abd721f71f0f3e164656c76951656d440829c7fff1fc0eed1ffd39"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreBatch.swift",
+      "sha256": "0649a0f8d0ccea8f51530bedde3ca737ae353ef639ef5bf71256ecf9d9d08968"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreCitations.swift",
+      "sha256": "834e16a71f914cb037813a3e4cb7dafdcbc327ac54d345413aad2db5474815d4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreDecision.swift",
+      "sha256": "b29e404be049101b307de53b0f07fc08ea75bad0085b66bb4032c1ce732fa191"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreEvaluation.swift",
+      "sha256": "dea93e246e1043a72358c8ddca2da003547f41a169ce0e680b742034db44dd79"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreFileSkillResults.swift",
+      "sha256": "594ef8aa483fc44d396863338c88ce6a90ee337e174c757bc38b2f5ae5ec6427"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreLanguageRequest.swift",
+      "sha256": "fe7278dc3d663576cc71ec0295e33f8c66b9e34471d63fe7e5549f97970e459c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreMediaResults.swift",
+      "sha256": "52b20ef9b16b1f629b6006cb3e1fd9c097d90af89b87c03b6a86b840b5a893db"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreMessages.swift",
+      "sha256": "3022068ecd960141f941a2909217755c567d059b97c3fb526e8c9b9fa28f554b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreProtocols.swift",
+      "sha256": "a0f21b5f3da2e94bcedd1eb3f4f1e68cd2903a3ba8621c60306b1c4f70c0e4fa"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreRealtime.swift",
+      "sha256": "8439f5c33cc0874e1e3e5b6ed7c11529c4ddc38bff4f2d2ba54d4dd76bdb03f4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreStreamingSpeech.swift",
+      "sha256": "9084aebbe7e51309c8a5596c1022cc978bc49056f3c63a846622c37bf4761cd4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreStreamingTranscription.swift",
+      "sha256": "643702d1a5857dc06be8ae1ad94782db53f264376c055906b7e4df31a762ee97"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreTextObjectResults.swift",
+      "sha256": "fb71b89ca30fdc3da95c0557d4225dbd16a5233e13a5790a10a350066dc23177"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreTools.swift",
+      "sha256": "a6d2b6779708b25ac34d5aee05a383b2572376883d87a58abe96525980641ef0"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreUtilities.swift",
+      "sha256": "41a0b7cbc995184a8b2507bbf27ae9a0e117fb2e37c820cf8537400f29c7713d"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreVideoRerankingResults.swift",
+      "sha256": "237fd17f1cc9de40a9259e1a049d568fad750afb4ed66e01414cf6bbbf9bc1c8"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/DecisionBox.swift",
+      "sha256": "2d5e88d10cc18625244915d1b4ba231fe41a43738bf09c084f43740d2cab1541"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/DecisionJSON.swift",
+      "sha256": "fe7cf2d5c28adf304ec1ac77cf7d625d198f4cb4ab80ea4531dac5a76963e1a4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/DuplexWebSocketTransport.swift",
+      "sha256": "a072d4f634bcd4de7b0ff5b9732bab98358d9fe6f5a485200fa35b2eba93368c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/Errors.swift",
+      "sha256": "87d84278799d93d38460bed64a3b8cb8b6ceef0ccc43a1d6a955297fa6b232ab"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/GatewayErrors.swift",
+      "sha256": "b3060abd9869029ecdaf57b5324cbe954374cd25a9dd60d3d9f68ab43ebb04b9"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/JSONInstruction.swift",
+      "sha256": "2efe9261696744e3c493320a6e5f705d020f6fd1d07a6c9d4ded2f8a6432a299"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/JSONValue.swift",
+      "sha256": "e2482e4dbc7aa9d20e2082149e111982ec76def16125f713d6bdd76c71472f36"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/ProviderReference.swift",
+      "sha256": "ebe92525eef3f036a2f627cdd261802cbe74508900e67372e6ed7f8af681f17b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/ProviderRegistry.swift",
+      "sha256": "3c46a68d224158367b0c5dabf5984c98c1bfba622ed02f681d60349da3faa9ab"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/SecureJSONParsing.swift",
+      "sha256": "8427e9d6a94ca274d10342f8cc45f1b9cc11a13ac1f3ce3296bb3bdc58471d4c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/BatchResultLines.swift",
+      "sha256": "3e037abeca29d8959012efc340d291cf868e1ce9013084a8fce239f9344f439a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/CoreDelayedPromise.swift",
+      "sha256": "ab5b820095c4074f37b022e4ffcf08d3d33e61f90d95271476aceb02d5835ae6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/CoreSerialJobExecutor.swift",
+      "sha256": "33bd7982b7b2e7140e635dd5c6e940bcb79c385a6d8e0772edc2c65f59935124"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/CoreUtilities.swift",
+      "sha256": "ef236c52124dfd2e1d5237d1998b0f8ae78785871041283fcc65a4c671decc59"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/DecisionLanguageModel.swift",
+      "sha256": "41a7b6d8fe36d4b8a07ba56e9ea1bd58457efb1e99c3616c4650afe9f78813d3"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/DecisionSerialization.swift",
+      "sha256": "c7aad410cc5c9c58a0ca2d63f48693b7e13d35ec4f8739de40041b4948991ba6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/DecisionValidation.swift",
+      "sha256": "14a6b631f657199b88cb8b737070d1b97147b212ce8163b8fa25e6f23b96e8a6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/EvaluationLanguageModel.swift",
+      "sha256": "be5e5c08593e5e21bd945ddbfa3f2926ac9d1cb60b840ac789cb748f4c824c14"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/FileUploadMetadata.swift",
+      "sha256": "95a831b96b542e545789663743371fdec7d37b7430814c7fe6053c467c907a14"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/JSONInstructions.swift",
+      "sha256": "3516da52ed324d9169ae103f3ad13ed113ae3a556b3224c4aa53b7b291b8f4a1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/JSONParsing.swift",
+      "sha256": "ee045277d6bc4c97d01c09ccb2bfdb103262e2a5a3cfac3967ae560b0ddda106"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/JSONSchemaValidator.swift",
+      "sha256": "83219c1ca57f9f959cc9abfb33e6dc2d56530b53ec8c9a71958eb56d549bfb7a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/LanguageModelCallOptions.swift",
+      "sha256": "0358092daad50a8d8f32009cd75645cce60abdcdf7ede74987daca31b50121e5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/LanguageStreamNormalization.swift",
+      "sha256": "c9965ae7e37a1f16bcfa65b6a5ac97bbfbf782718bc8e2faf8517938413b3040"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/MediaType.swift",
+      "sha256": "19f5ae234048a532ba45e6424d02fad60b9c107c4615f726c42da91943fb05e5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/OpenAIStyleStreamingToolCalls.swift",
+      "sha256": "d32544126ae2bc6f736c040a2af89ab4a165a2068d8eef7f40682b1a0657212c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/PromptConversion.swift",
+      "sha256": "bb0d344d074753772c986cba0f3db8aa737e6d0fbabace70c01b476bac33a1e4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/PromptStandardization.swift",
+      "sha256": "a6f4b42afdb023b6e798e2931c06d3567a257c06165c1407e96bc56d89530a33"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/ResponseMetadata.swift",
+      "sha256": "2d57cb7378245a9457718dd1b57e511b54f3da0f0436c4c8b0dd3a11c2ae3005"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/ResultContent.swift",
+      "sha256": "fd175bd3ac09f71d3184aa356f5eaa7b324f5325fa97e29412576e7ed3324f8e"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/SkillUploadMetadata.swift",
+      "sha256": "ab2855ee8976702494d039649c8696dfbb19d7f260fb0225607dff85d4e77e38"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/SpeechStreamEnvelope.swift",
+      "sha256": "17a2d7d1257af00126708a259cd2a6b94cd763a72ad634ca941e0729864c6e8d"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/StreamProviderError.swift",
+      "sha256": "a5bcf7d799b9bfdce9da50cbe5564e4c9f8565077197237eb20b50c03ccf03ca"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/StreamingToolCallTracker.swift",
+      "sha256": "9f17b2f178d892afc6d57e7d570baddf5f74bf5e19d2916aac1dd75207481ac5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/TranscriptionParsing.swift",
+      "sha256": "a9da67890b16ff5aa347b1070f649a91d34791cf983efdd9a97f550284b4339b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/UsageParsing.swift",
+      "sha256": "6ba3c6f4f9f55450bc619ae559ddd407b3e59c1965aaca8a3d6104e50f224079"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/WarningLogging.swift",
+      "sha256": "537252f640132cefd5a9103135f292f418ff883feb3b89128177d28983bffa56"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/WarningSerialization.swift",
+      "sha256": "27284490db573b9a4fa5ba1c7971ff1411edd1c2238c4a95381a9f3a5dd14af4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/DuplexWebSocketTransport.swift",
+      "sha256": "4ea7ebb84e5755fed95260aa3b7bfcf70566192792c3ae5f3e3aacfa5b1454d5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HTTP.swift",
+      "sha256": "cdafe44e89e1c3bf7aebe2e7cb5175ce5ca8754ea1fb9fbc6f2c44d24bef39d3"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HTTPDNSPinning.swift",
+      "sha256": "d67717d8eaf92bff040e73c0557c86ca73a54e26b204156ec41c70ba9ec8999b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HTTPPinnedConnection.swift",
+      "sha256": "a2b9a495fa2e3207de2f505f2115b74f791e72c6b8ccfeda932cf818f6c62138"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HTTPStreamBody.swift",
+      "sha256": "2ef4cacefc986638ed67724ce40e794189651bf3989eaa2d434c98675188a967"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HostnameValidation.swift",
+      "sha256": "3bf1e294a61beb1d83ccc371936855dc3743a679e131c293e51dc7eeacba2302"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/LanguageStreamParsing.swift",
+      "sha256": "38081908bc7a314d375bc52975f4b01785ef7039bada1ee5df62e530e7c74e05"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/MultipartFormData.swift",
+      "sha256": "3b281e680a2f60aa9c5abd306ae28db4d7935f9923b6a5c8a37a0d666d4be475"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderHTTPClient.swift",
+      "sha256": "720badbfd8b9a1e8ed7507a7de67a9df42db8e5cde3be4e006287552270d89a6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderURL.swift",
+      "sha256": "0a4f6a5b8c59525a9e4643c3aad6e364acf600a22ff4d84d815d553e6f36c866"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/ServerSentEvents.swift",
+      "sha256": "409fc2d17e70addad0dd020ca1d644995d8830210c8b378e44a3ce598fbee284"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderTests/CoreContractTests.swift",
+      "sha256": "af9352d93b6ab46d90b2a52d53e3d9675d29f3b4d67467f284d0208256121b7a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/AiCoreUtilityUpstreamTests.swift",
+      "sha256": "b1b330846eee342d7629e9dfd44022a67e48199fcba5c6c5278c0989c80a4fe4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/JSONParsingTests.swift",
+      "sha256": "6d2d2ca196bdc9104bd7471feeaeb8b5bc4c213532c9f868cf717bc90b5ea7da"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/JSONSchemaTransformationTests.swift",
+      "sha256": "e41b323a9739f8d8650dc3cca9837a0716f0ef7b36f21c0d00f93ce2064a96c7"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/AiPartialJSONUpstreamTests.swift",
+      "sha256": "4b2b06dd62aebb44fc766ddc7359d7228c895d12a19ec8365d3817349104a8f4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/DownloadURLValidationTests.swift",
+      "sha256": "31270595af290e45971ab6a0cefe460d3ba4d3914efad7c8dd37c2bd3aecb92a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/FixtureDownloadTransport.swift",
+      "sha256": "d6c8fab8187cb7aaa1dca486c11f487ab8d21274ad2424e4a6bae2a45a4d6baa"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPDNSPinningTests.swift",
+      "sha256": "512b43a736d3be1e992a8631d59af3be098f0de343aa535624bde1afaba642b5"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPRedirectSecurityTests.swift",
+      "sha256": "1ce4e89712d51111002a148146ec294d56d9f28bf8fc495a58908a77cef178c0"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPResponseSizeLimitTests.swift",
+      "sha256": "361817f72fa06bbda8370adeccf661a13b214f0fbc1bf3f3abc024d625d9a400"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPStreamingBackpressureTests.swift",
+      "sha256": "0983db07eadc6d50b52d307d7515de6eac88dae49eebd0779046a14cbe4b88f8"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/MultipartFormDataTests.swift",
+      "sha256": "cde7d7dbc5404ca46728491e191fa6653c4c801e13a716974bc93df132a1d19a"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/RecordingTransport.swift",
+      "sha256": "eacc8eae6d6a46eafbc72f2744042ae96a0718660e34ae203e0ac65a439157cb"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/ServerSentEventParserTests.swift",
+      "sha256": "37ad09e501816c5fccc9ef77c13cc2517046f54a9be3cd94a6369345cc4b1790"
+    }
+  ]
+}
