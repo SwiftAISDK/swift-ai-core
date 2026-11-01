@@ -206,7 +206,7 @@ public final class AIRealtimeSession:
         }
         return try await connect(
             model: model,
-            socketConfig: try model.getServerWebSocketConfig(),
+            socketConfig: try await model.getResolvedServerWebSocketConfig(),
             sessionConfiguration: sessionConfiguration,
             clientSecretExpiresAt: nil,
             webSocketTransport: webSocketTransport,

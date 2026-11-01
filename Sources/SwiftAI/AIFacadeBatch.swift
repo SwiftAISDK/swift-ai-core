@@ -4,7 +4,7 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 
 
-private let aiBatchUserAgent = "ai/7.0.153"
+private let aiBatchUserAgent = "ai/7.0.159"
 
 extension AI {
     /// Starts a provider-owned Batch V4 operation. Unlike the legacy text-only

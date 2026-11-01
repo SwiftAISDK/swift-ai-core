@@ -19,6 +19,7 @@ public struct AIToolStep: Sendable {
     public var warnings: [AIWarning]
     public var providerMetadata: [String: JSONValue]
     public var responseMetadata: AIResponseMetadata
+    public var experimentalSteeringMessages: [AIMessage] = []
 
     public init(
         index: Int,

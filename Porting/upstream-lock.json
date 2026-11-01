@@ -3,53 +3,78 @@
   "packages": [
     {
       "name": "ai",
-      "reviewedVersion": "7.0.153",
+      "reviewedVersion": "7.0.159",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-Ib8v374jWn9FXsjADXodRaP7fsMutlmPsbTLT5gYBDyadFcF9XxfYX1CSSxgSvE1r06MmOeYVwvQjFb3CcBi1Q==",
-      "sourceRef": "npm:ai@7.0.153",
-      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
-      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "archiveIntegrity": "sha512-4e/BwDoKJlMNYZaqERcTbGte+4TwroN9qKnCprog/XVfD9InzVPlhCviDhN452JIRrRsYg9BT0WsQ2C3Ds2mVQ==",
+      "sourceRef": "npm:ai@7.0.159",
+      "testRef": "028a025398782f4938303f48fbeee45c79af544b",
+      "testRefRelationship": "matching-release",
       "contractFamilies": [
-        "ProviderV4 orchestration"
+        "EmbeddingModelV3",
+        "EmbeddingModelV4",
+        "ImageModelV3",
+        "ImageModelV4",
+        "LanguageModelV3",
+        "LanguageModelV4",
+        "ProviderV4",
+        "RerankingModelV3",
+        "RerankingModelV4",
+        "SpeechModelV3",
+        "SpeechModelV4",
+        "TranscriptionModelV3",
+        "TranscriptionModelV4"
       ],
-      "contractReview": "M5 pinned published declarations reviewed; native Swift protocols and typed factories are the compatibility contract. Retain existing behavior and documented gaps. npm gitHead absent; test snapshot is not matching-release evidence. See Docs/Migration/M5/upstream-review.json."
+      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
     },
     {
       "name": "@ai-sdk/provider",
-      "reviewedVersion": "4.0.34",
+      "reviewedVersion": "4.0.35",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-Ip7ZQBq/FiGpM1mmOVseTtX9PBjnzo0bLC41WTgBSBBRUBz6LhNFGbYaNUzI6hPm6ll1oNSPOAZc/q/z+3QZEQ==",
-      "sourceRef": "npm:@ai-sdk/provider@4.0.34",
-      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
-      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "archiveIntegrity": "sha512-yBz6fmLS8MSCIzy7NiHEUAq56ZLD4ZA1GR6bpXBxgbwUacP1La7LuwAr/xy9jSzthem4F8Xu2OrhvU/JrE9fYA==",
+      "sourceRef": "npm:@ai-sdk/provider@4.0.35",
+      "testRef": "9b603d36186b75e58d5479445a96c76f6e2d2700",
+      "testRefRelationship": "matching-release",
       "contractFamilies": [
-        "ProviderV4",
-        "LanguageModelV4",
+        "DecisionModelV4",
+        "EmbeddingModelV3",
         "EmbeddingModelV4",
+        "ImageModelV3",
         "ImageModelV4",
+        "LanguageModelV3",
+        "LanguageModelV4",
+        "ProviderV4",
+        "RealtimeModelV4",
+        "RerankingModelV3",
+        "RerankingModelV4",
+        "SpeechModelV3",
         "SpeechModelV4",
-        "TranscriptionModelV4"
+        "SpeechTranslationModelV4",
+        "TranscriptionModelV3",
+        "TranscriptionModelV4",
+        "VideoModelV3",
+        "VideoModelV4"
       ],
-      "contractReview": "M5 pinned published declarations reviewed; native Swift protocols and typed factories are the compatibility contract. Retain existing behavior and documented gaps. npm gitHead absent; test snapshot is not matching-release evidence. See Docs/Migration/M5/upstream-review.json."
+      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
     },
     {
       "name": "@ai-sdk/provider-utils",
-      "reviewedVersion": "5.0.68",
+      "reviewedVersion": "5.0.72",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-SASuC1DqSdWoYyYfpxbgPKm9VCnMP1VTahWY7WEYzi2QDmFdbw4runqmH7NKC33iB/INo+XbaN2hH3dXHSNQZw==",
-      "sourceRef": "npm:@ai-sdk/provider-utils@5.0.68",
-      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
-      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "archiveIntegrity": "sha512-M6QAztI84jWumQSvKcGOL91DxhChsWxn3D3gYtV0/7E1TPQg9BmLdIerOolUC/jghQbMlQrHyzp0hqdIhUZ2Rw==",
+      "sourceRef": "npm:@ai-sdk/provider-utils@5.0.72",
+      "testRef": "9b603d36186b75e58d5479445a96c76f6e2d2700",
+      "testRefRelationship": "matching-release",
       "contractFamilies": [
-        "ProviderV4 utilities"
+        "LanguageModelV4",
+        "TranscriptionModelV4"
       ],
-      "contractReview": "M5 pinned published declarations reviewed; native Swift protocols and typed factories are the compatibility contract. Retain existing behavior and documented gaps. npm gitHead absent; test snapshot is not matching-release evidence. See Docs/Migration/M5/upstream-review.json."
+      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
     }
   ]
 }

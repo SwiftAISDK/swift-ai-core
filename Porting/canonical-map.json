@@ -436,6 +436,7 @@
       "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/WarningLogging.swift",
       "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/WarningSerialization.swift",
       "Packages/swift-ai-core/Sources/SwiftAITransport/AWSSigV4.swift",
+      "Packages/swift-ai-core/Sources/SwiftAITransport/AsyncCredential.swift",
       "Packages/swift-ai-core/Sources/SwiftAITransport/DuplexWebSocketTransport.swift",
       "Packages/swift-ai-core/Sources/SwiftAITransport/HTTP.swift",
       "Packages/swift-ai-core/Sources/SwiftAITransport/HTTPDNSPinning.swift",
@@ -447,13 +448,16 @@
       "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderHTTPClient.swift",
       "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderHTTPConfiguration.swift",
       "Packages/swift-ai-core/Sources/SwiftAITransport/ProviderURL.swift",
-      "Packages/swift-ai-core/Sources/SwiftAITransport/ServerSentEvents.swift"
+      "Packages/swift-ai-core/Sources/SwiftAITransport/ServerSentEvents.swift",
+      "Packages/swift-ai-core/Sources/SwiftAI/AISteering.swift",
+      "Packages/swift-ai-core/Sources/SwiftAIProvider/ModelCapabilities.swift"
     ],
     "tests": [
       "Packages/swift-ai-core/Tests/SwiftAIProviderTests/CoreContractTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/AiCoreUtilityUpstreamTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/JSONParsingTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/JSONSchemaTransformationTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/Weekly20261101ReasoningTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITests/AiPartialJSONUpstreamTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/DownloadURLValidationTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/FixtureDownloadTransport.swift",
@@ -464,7 +468,11 @@
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/MultipartFormDataTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/ProviderHTTPConfigurationTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/RecordingTransport.swift",
-      "Packages/swift-ai-core/Tests/SwiftAITransportTests/ServerSentEventParserTests.swift"
+      "Packages/swift-ai-core/Tests/SwiftAITransportTests/ServerSentEventParserTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAITransportTests/Weekly20261101CredentialTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAIProviderTests/Weekly20261101ModelCapabilitiesTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261101CoreTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261101CoreRepairTests.swift"
     ],
     "resources": []
   },

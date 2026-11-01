@@ -19,7 +19,11 @@ func streamTextWithTelemetry(
     streamRetries: Int? = nil,
     telemetry: Telemetry.Options?,
     abortSignal: AIAbortSignal? = nil,
-    logWarnings: Bool = true
+    logWarnings: Bool = true,
+    onStepError: (@Sendable (any Error) async -> Void)? = nil,
+    onError: (@Sendable (any Error) async -> Void)? = nil,
+    onAbort: (@Sendable ((any Error)?) async -> Void)? = nil,
+    reportsStepErrors: Bool = true
 ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
     publicLanguageStream(
         streamTextWithTelemetryParts(
@@ -32,7 +36,11 @@ func streamTextWithTelemetry(
             streamRetries: streamRetries,
             telemetry: telemetry,
             abortSignal: abortSignal,
-            logWarnings: logWarnings
+            logWarnings: logWarnings,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort,
+            reportsStepErrors: reportsStepErrors
         )
     )
 }
@@ -47,7 +55,11 @@ func streamTextWithTelemetryParts(
     streamRetries: Int? = nil,
     telemetry: Telemetry.Options?,
     abortSignal: AIAbortSignal? = nil,
-    logWarnings: Bool = true
+    logWarnings: Bool = true,
+    onStepError: (@Sendable (any Error) async -> Void)? = nil,
+    onError: (@Sendable (any Error) async -> Void)? = nil,
+    onAbort: (@Sendable ((any Error)?) async -> Void)? = nil,
+    reportsStepErrors: Bool = true
 ) -> AsyncThrowingStream<StreamTextTelemetryPart, Error> {
     let dispatcher = TelemetryDispatcher(options: telemetry)
     let callID = UUID().uuidString
@@ -57,6 +69,7 @@ func streamTextWithTelemetryParts(
     return AsyncThrowingStream { continuation in
         let task = Task {
             var step = LanguageStreamToolStep()
+            var hasStartedStep = false
 
             do {
                 await dispatcher.record(telemetryEvent(
@@ -94,6 +107,7 @@ func streamTextWithTelemetryParts(
                     var receivedSemanticOutput = false
                     var receivedTerminalPart = false
                     do {
+                        hasStartedStep = true
                         let stream = try await dispatcher.executeLanguageModelCall(
                             callID: callID,
                             operationID: operationID,
@@ -124,6 +138,9 @@ func streamTextWithTelemetryParts(
                                 break
                             }
 
+                            if let providerError = outgoingPart.streamProviderError {
+                                await onError?(providerError)
+                            }
                             if outgoingPart.streamProviderError != nil,
                                !bufferedAttemptParts.isEmpty {
                                 for bufferedPart in bufferedAttemptParts {
@@ -287,11 +304,12 @@ func streamTextWithTelemetryParts(
                     }
                 }
             } catch {
-                if isCancellationTelemetryError(error) {
+                if isCausedByAbort(error) || abortSignal?.isAborted == true {
                     let abortDescription = abortSignal.flatMap { signal in
                         signal.isAborted ? signal.reason : nil
                     } ?? String(describing: error)
                     if await terminalState.claimTerminalEvent() {
+                        await onAbort?(error)
                         await dispatcher.record(telemetryEvent(
                             kind: .abort,
                             callID: callID,
@@ -304,9 +322,15 @@ func streamTextWithTelemetryParts(
                             errorDescription: abortDescription
                         ))
                     }
-                    continuation.finish()
+                    if isTextStreamTimeout(error) { continuation.finish(throwing: error) }
+                    else { continuation.finish() }
                 } else {
                     if await terminalState.claimTerminalEvent() {
+                        if hasStartedStep { await onStepError?(error) }
+                        if operationID == "ai.streamText" && reportsStepErrors && hasStartedStep {
+                            await dispatcher.record(telemetryEvent(kind: .stepError, callID: callID, operationID: operationID + ".step", providerID: providerID, modelID: modelID, options: telemetry, input: ["stepNumber": .number(Double(AITelemetryStepContext.stepNumber))], errorDescription: String(describing: error)))
+                        }
+                        await onError?(error)
                         await dispatcher.record(telemetryEvent(
                             kind: .error,
                             callID: callID,
@@ -331,6 +355,7 @@ func streamTextWithTelemetryParts(
                 } ?? "Stream cancelled."
                 Task {
                     if await terminalState.claimTerminalEvent() {
+                        await onAbort?(CancellationError())
                         await dispatcher.record(telemetryEvent(
                             kind: .abort,
                             callID: callID,

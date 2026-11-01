@@ -4,7 +4,7 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 
 
-private let aiEvaluationUserAgent = "ai/7.0.153"
+private let aiEvaluationUserAgent = "ai/7.0.159"
 
 extension AI {
     /// Source-compatible direct-model entry point retained from SwiftAISDK 1.9.0.

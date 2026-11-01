@@ -21,11 +21,14 @@ func withTelemetry<Output: Sendable>(
     providerUsage: (@Sendable (Output) -> [String: JSONValue]?)? = nil,
     wrapLanguageModelCall: Bool = false,
     logEmptyWarnings: Bool = true,
+    stepError: (@Sendable (any Error) async -> Void)? = nil,
     operation: @escaping @Sendable () async throws -> Output
 ) async throws -> Output {
     let dispatcher = TelemetryDispatcher(options: telemetry)
     guard dispatcher.isEnabled else {
-        let result = try await withRetry(policy: retryPolicy, abortSignal: abortSignal, operation: operation)
+        let result: Output
+        do { result = try await withRetry(policy: retryPolicy, abortSignal: abortSignal, operation: operation) }
+        catch { await stepError?(error); throw error }
         let resultWarnings = warnings(result)
         if logEmptyWarnings || !resultWarnings.isEmpty {
             await AIWarningLogging.logWarnings(resultWarnings, providerID: providerID, modelID: modelID)
@@ -98,7 +101,11 @@ func withTelemetry<Output: Sendable>(
         }
         return result
     } catch {
-        let eventKind: Telemetry.Event.Kind = isCancellationTelemetryError(error) ? .abort : .error
+        await stepError?(error)
+        if operationID == "ai.generateText" {
+            await dispatcher.record(telemetryEvent(kind: .stepError, callID: callID, operationID: operationID + ".step", providerID: providerID, modelID: modelID, options: telemetry, input: ["stepNumber": .number(Double(AITelemetryStepContext.stepNumber))], errorDescription: String(describing: error)))
+        }
+        let eventKind: Telemetry.Event.Kind = isCancellationTelemetryError(error) || abortSignal?.isAborted == true ? .abort : .error
         await dispatcher.record(telemetryEvent(
             kind: eventKind,
             callID: callID,

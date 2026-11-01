@@ -793,13 +793,15 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
     _ stream: AsyncThrowingStream<LanguageStreamPart, Error>,
     output: AIOutput<FinalOutput, PartialOutput>,
     providerID: String,
-    repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)?
+    repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)?,
+    stepResults: AISteeringStepResults? = nil
 ) -> AsyncThrowingStream<AIOutputStreamPart<FinalOutput, PartialOutput>, Error> {
     AsyncThrowingStream { continuation in
         let task = Task {
             var step = LanguageStreamToolStep()
             var rawValues: [JSONValue] = []
             var lastPublishedText: String?
+            var stepFinished = false
 
             func publishPartialIfAvailable() {
                 guard step.text != lastPublishedText,
@@ -813,6 +815,16 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
             do {
                 for try await part in stream {
                     try Task.checkCancellation()
+                    if stepFinished {
+                        switch part {
+                        case .toolResult, .toolApprovalRequest, .toolApprovalResponse: break
+                        default:
+                            step = LanguageStreamToolStep()
+                            rawValues.removeAll(keepingCapacity: true)
+                            lastPublishedText = nil
+                            stepFinished = false
+                        }
+                    }
                     switch part {
                     case let .streamStart(warnings):
                         step = LanguageStreamToolStep()
@@ -845,13 +857,15 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
                         continuation.yield(.raw(part))
                     case .finish, .finishMetadata:
                         step.record(part)
+                        stepFinished = true
                     default:
                         step.record(part)
                         continuation.yield(.raw(part))
                     }
                 }
 
-                let finalStep = step.toolStep(
+                let recordedSteps = stepResults?.steps ?? []
+                let finalStep = recordedSteps.last ?? step.toolStep(
                     index: 0,
                     toolResults: [],
                     approvalRequests: [],
@@ -868,7 +882,7 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
                     toolResults: finalStep.toolResults,
                     toolApprovalRequests: finalStep.toolApprovalRequests,
                     toolApprovalResponses: finalStep.toolApprovalResponses,
-                    steps: [finalStep],
+                    steps: recordedSteps.isEmpty ? [finalStep] : recordedSteps,
                     sources: finalStep.sources,
                     providerMetadata: finalStep.providerMetadata,
                     rawValue: rawValues.isEmpty ? .string(finalStep.text) : .array(rawValues),

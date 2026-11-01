@@ -436,6 +436,7 @@
       "Sources/SwiftAIProviderUtilities/WarningLogging.swift",
       "Sources/SwiftAIProviderUtilities/WarningSerialization.swift",
       "Sources/SwiftAITransport/AWSSigV4.swift",
+      "Sources/SwiftAITransport/AsyncCredential.swift",
       "Sources/SwiftAITransport/DuplexWebSocketTransport.swift",
       "Sources/SwiftAITransport/HTTP.swift",
       "Sources/SwiftAITransport/HTTPDNSPinning.swift",
@@ -447,13 +448,16 @@
       "Sources/SwiftAITransport/ProviderHTTPClient.swift",
       "Sources/SwiftAITransport/ProviderHTTPConfiguration.swift",
       "Sources/SwiftAITransport/ProviderURL.swift",
-      "Sources/SwiftAITransport/ServerSentEvents.swift"
+      "Sources/SwiftAITransport/ServerSentEvents.swift",
+      "Sources/SwiftAI/AISteering.swift",
+      "Sources/SwiftAIProvider/ModelCapabilities.swift"
     ],
     "tests": [
       "Tests/SwiftAIProviderTests/CoreContractTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/AiCoreUtilityUpstreamTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/JSONParsingTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/JSONSchemaTransformationTests.swift",
+      "Tests/SwiftAIProviderUtilitiesTests/Weekly20261101ReasoningTests.swift",
       "Tests/SwiftAITests/AiPartialJSONUpstreamTests.swift",
       "Tests/SwiftAITransportTests/DownloadURLValidationTests.swift",
       "Tests/SwiftAITransportTests/FixtureDownloadTransport.swift",
@@ -464,7 +468,11 @@
       "Tests/SwiftAITransportTests/MultipartFormDataTests.swift",
       "Tests/SwiftAITransportTests/ProviderHTTPConfigurationTests.swift",
       "Tests/SwiftAITransportTests/RecordingTransport.swift",
-      "Tests/SwiftAITransportTests/ServerSentEventParserTests.swift"
+      "Tests/SwiftAITransportTests/ServerSentEventParserTests.swift",
+      "Tests/SwiftAITransportTests/Weekly20261101CredentialTests.swift",
+      "Tests/SwiftAIProviderTests/Weekly20261101ModelCapabilitiesTests.swift",
+      "Tests/SwiftAITests/Weekly20261101CoreTests.swift",
+      "Tests/SwiftAITests/Weekly20261101CoreRepairTests.swift"
     ],
     "resources": []
   },

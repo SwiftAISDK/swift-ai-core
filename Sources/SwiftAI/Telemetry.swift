@@ -16,11 +16,14 @@ public enum Telemetry {
             case modelCallEnd
             case stepStart
             case stepEnd
+            case stepError
             case toolStart
             case toolEnd
             case toolError
         }
 
+        /// Version of the reviewed upstream ai contract that emitted this event.
+        public var aiVersion: String? = nil
         public var kind: Kind
         public var callID: String
         public var operationID: String
@@ -148,6 +151,7 @@ public enum Telemetry {
     }
 
     public struct LanguageModelCallContext<Output: Sendable>: Sendable {
+        public var aiVersion: String? = nil
         public var callID: String
         public var operationID: String
         public var providerID: String
@@ -170,6 +174,7 @@ public enum Telemetry {
     }
 
     public struct ToolExecutionContext<Output: Sendable>: Sendable {
+        public var aiVersion: String? = nil
         public var callID: String
         public var toolCallID: String
         public var toolName: String

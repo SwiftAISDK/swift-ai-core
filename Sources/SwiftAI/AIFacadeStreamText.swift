@@ -13,7 +13,12 @@ extension AI {
         retryPolicy: AIRetryPolicy = .default,
         streamRetries: Int? = nil,
         telemetry: Telemetry.Options? = nil,
-        logWarnings: Bool
+        logWarnings: Bool,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil,
+        stepNumber: Int = 0,
+        reportsStepErrors: Bool = true
     ) -> AsyncThrowingStream<StreamTextTelemetryPart, Error> {
         let preparedRequest: LanguageModelRequest
         do {
@@ -29,7 +34,11 @@ extension AI {
                 streamRetries: streamRetries,
                 telemetry: telemetry,
                 abortSignal: request.abortSignal,
-                logWarnings: logWarnings
+                logWarnings: logWarnings,
+                onStepError: nil,
+                onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
+                onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: [], reason: request.abortSignal?.reason ?? error.map { String(describing: $0) })) },
+                reportsStepErrors: false
             )
         }
         if let timeoutNanoseconds, timeoutNanoseconds <= 0 {
@@ -48,7 +57,11 @@ extension AI {
                 streamRetries: streamRetries,
                 telemetry: telemetry,
                 abortSignal: preparedRequest.abortSignal,
-                logWarnings: logWarnings
+                logWarnings: logWarnings,
+                onStepError: nil,
+                onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
+                onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: [], reason: request.abortSignal?.reason ?? error.map { String(describing: $0) })) },
+                reportsStepErrors: false
             )
         }
         if let validationError = validateStreamTimeoutConfiguration(timeout) {
@@ -62,7 +75,11 @@ extension AI {
                 streamRetries: streamRetries,
                 telemetry: telemetry,
                 abortSignal: preparedRequest.abortSignal,
-                logWarnings: logWarnings
+                logWarnings: logWarnings,
+                onStepError: nil,
+                onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
+                onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: [], reason: request.abortSignal?.reason ?? error.map { String(describing: $0) })) },
+                reportsStepErrors: false
             )
         }
         let totalTimeoutNanoseconds = minimumTimeoutNanoseconds(
@@ -143,7 +160,13 @@ extension AI {
             streamRetries: streamRetries,
             telemetry: telemetry,
             abortSignal: operationRequest.abortSignal,
-            logWarnings: logWarnings
+            logWarnings: logWarnings,
+                onStepError: { error in
+                    try? await onStepError?(AIGenerateTextStepErrorEvent(stepNumber: stepNumber, providerID: model.providerID, modelID: model.modelID, request: request, error: error))
+                },
+                onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
+                onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: [], reason: request.abortSignal?.reason ?? error.map { String(describing: $0) })) },
+                reportsStepErrors: reportsStepErrors
         )
         let stepTimedStream = streamWithTimeout(
             retriedStream,
@@ -167,7 +190,10 @@ extension AI {
         retryPolicy: AIRetryPolicy = .default,
         streamRetries: Int? = nil,
         telemetry: Telemetry.Options? = nil,
-        logWarnings: Bool
+        logWarnings: Bool,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
         validatedEnforcedToolChoiceStream(
             publicLanguageStream(
@@ -179,7 +205,10 @@ extension AI {
                 retryPolicy: retryPolicy,
                 streamRetries: streamRetries,
                 telemetry: telemetry,
-                logWarnings: logWarnings
+                logWarnings: logWarnings,
+                onStepError: onStepError,
+                onError: onError,
+                onAbort: onAbort
             )
             ),
             toolChoice: request.toolChoice,
@@ -195,9 +224,16 @@ extension AI {
         timeout: AIStreamTimeoutConfiguration? = nil,
         retryPolicy: AIRetryPolicy = .default,
         streamRetries: Int? = nil,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
-        streamText(
+        if let experimentalSteering {
+            return streamText(model: model, request: request, executableTools: [], maxSteps: 1, timeoutNanoseconds: timeoutNanoseconds, timeout: timeout, retryPolicy: retryPolicy, streamRetries: streamRetries, telemetry: telemetry, experimentalSteering: experimentalSteering, onStepError: onStepError, onError: onError, onAbort: onAbort)
+        }
+        return streamText(
             model: model,
             request: request,
             timeoutNanoseconds: timeoutNanoseconds,
@@ -205,7 +241,10 @@ extension AI {
             retryPolicy: retryPolicy,
             streamRetries: streamRetries,
             telemetry: telemetry,
-            logWarnings: true
+            logWarnings: true,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort
         )
     }
 
@@ -223,9 +262,13 @@ extension AI {
         timeout: AIStreamTimeoutConfiguration? = nil,
         retryPolicy: AIRetryPolicy = .default,
         streamRetries: Int? = nil,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
-        guard !executableTools.isEmpty || prepareStep != nil else {
+        guard !executableTools.isEmpty || prepareStep != nil || experimentalSteering != nil else {
             return streamText(
                 model: model,
                 request: request,
@@ -233,7 +276,10 @@ extension AI {
                 timeout: timeout,
                 retryPolicy: retryPolicy,
                 streamRetries: streamRetries,
-                telemetry: telemetry
+                telemetry: telemetry,
+                onStepError: onStepError,
+                onError: onError,
+                onAbort: onAbort
             )
         }
         if let validationError = validateStreamTimeoutConfiguration(timeout) {
@@ -264,9 +310,15 @@ extension AI {
         )
         let operationRequest = requestWithTimeoutSignals
 
+        let stepResults = AISteeringContext.streamResults ?? AISteeringStepResults()
         let stream = AsyncThrowingStream<LanguageStreamPart, Error> { continuation in
-            let task = Task {
+            let task = AISteeringContext.$streamResults.withValue(nil) { Task {
+                var steeringEndReason: AISteeringNotDeliveredReason = .error
+                var steeringStarted = false
+                defer { if steeringStarted { experimentalSteering?.end(operationRequest.abortSignal?.isAborted == true || Task.isCancelled ? .aborted : steeringEndReason) } }
                 do {
+                    try experimentalSteering?.start()
+                    steeringStarted = true
                     if let validationError = validateStreamTimeoutConfiguration(timeout) {
                         throw validationError
                     }
@@ -275,7 +327,7 @@ extension AI {
                     }
 
                     let initialRequest = operationRequest
-                    var currentRequest = operationRequest
+                    var currentRequest = initialRequest
                     var steps: [AIToolStep] = []
                     var responseMessages: [AIMessage] = []
                     var pendingProviderExecutedToolCallIDs: Set<String> = []
@@ -320,20 +372,24 @@ extension AI {
                             }
                         }
 
-                        let prepared = try await prepareStep?(AIPrepareStepContext(
+                        let steeringMessages = experimentalSteering?.takeMessages() ?? []
+                        stepCurrentRequest.messages.append(contentsOf: steeringMessages)
+                        var stepContext = AIPrepareStepContext(
                             model: model,
                             stepNumber: index,
                             steps: steps,
                             request: stepCurrentRequest,
                             initialRequest: initialRequest,
                             responseMessages: responseMessages
-                        ))
+                        )
+                        stepContext.experimentalSteeringMessages = steeringMessages
+                        let prepared = try await prepareStep?(stepContext)
                         try stepDeadline.throwIfTimedOut()
                         let stepModel = prepared?.model ?? model
                         let stepTools = prepared?.executableTools ?? executableTools
                         let preparedTools = try await toolDiscovery.prepare(tools: stepTools, routing: toolCallers)
                         let executionTools = preparedTools.executionTools
-                        let modelToolsByName = try toolsByName(from: preparedTools.modelTools)
+                        var modelToolsByName = try toolsByName(from: preparedTools.modelTools)
                         let directExecutionTools = executionTools.filter {
                             modelToolsByName[$0.name] != nil
                         }
@@ -364,6 +420,10 @@ extension AI {
                             stepRequest.tools.merge(toolsDictionary(from: preparedTools.modelTools)) { _, typed in typed }
                         }
 
+                        let schemaOnlyToolNames: Set<String> = experimentalSteering == nil ? [] : Set(stepRequest.tools.keys).subtracting(executionToolsByName.keys)
+                        if experimentalSteering != nil {
+                            modelToolsByName = modelValidationTools(stepRequest.tools, explicit: modelToolsByName)
+                        }
                         await toolTelemetry.recordStepStart(
                             index: index,
                             maxSteps: maxSteps,
@@ -372,6 +432,8 @@ extension AI {
                             tools: executionTools
                         )
                         try stepDeadline.throwIfTimedOut()
+                        let deliveredSteeringMessages = experimentalSteering?.resolveTakenMessages(stepNumber: index, sentMessages: stepRequest.messages) ?? []
+                        let previousSteps = steps
                         let step = try await forwardLanguageStream(
                             streamTextParts(
                                 model: stepModel,
@@ -385,7 +447,15 @@ extension AI {
                                 retryPolicy: retryPolicy,
                                 streamRetries: streamRetries,
                                 telemetry: nil,
-                                logWarnings: true
+                                logWarnings: true,
+                                onStepError: { event in
+                                    var event = event
+                                    event.steps = previousSteps
+                                    try? await onStepError?(event)
+                                    await toolTelemetry.recordStepError(event)
+                                },
+                                stepNumber: index,
+                                reportsStepErrors: false
                             ),
                             to: continuation,
                             toolsByName: modelToolsByName,
@@ -395,13 +465,16 @@ extension AI {
                             partIDReserver: partIDReserver
                         )
                         try stepDeadline.throwIfTimedOut()
+                        try operationRequest.abortSignal?.throwIfAborted()
+                        try Task.checkCancellation()
                         try validateEnforcedToolChoice(
                             stepRequest.toolChoice,
                             step: step,
                             providerID: stepModel.providerID,
                             modelID: stepModel.modelID
                         )
-                        let executableCalls = step.toolCalls.filter { !$0.providerExecuted }
+                        let executableCalls = step.toolCalls.filter { !$0.providerExecuted && !schemaOnlyToolNames.contains($0.name) }
+                        let unresolvedCalls = step.toolCalls.filter { !$0.providerExecuted && schemaOnlyToolNames.contains($0.name) }
                         let providerExecutedToolCallIDs = Set(step.toolCalls.filter(\.providerExecuted).map(\.id))
                         pendingProviderExecutedToolCallIDs.formUnion(providerExecutedToolCallIDs)
                         let providerExecutedToolResultIDs = Set(step.streamedToolResults.compactMap { result -> String? in
@@ -426,9 +499,29 @@ extension AI {
                             if completedStep.responseMetadata.modelID == nil {
                                 completedStep.responseMetadata.modelID = stepModel.modelID
                             }
+                            completedStep.experimentalSteeringMessages = deliveredSteeringMessages
                             steps.append(completedStep)
+                            stepResults.append(completedStep)
                             await toolTelemetry.recordStepEnd(completedStep)
                             try stepDeadline.throwIfTimedOut()
+                            let canContinueWithSteering = experimentalSteering?.hasPendingMessages == true
+                                && step.finishReason != "interrupted" && step.finishReason != "error"
+                                && executableCalls.isEmpty && unresolvedCalls.isEmpty
+                            let stopped = canContinueWithSteering ? try await isStopConditionMet(stopWhen, steps: steps) : false
+                            if canContinueWithSteering, !stopped, index < maxSteps - 1 {
+                                let stepResponseMessages = try await toResponseMessages(content: completedStep.content.compactMap(\.responseMessagePart), toolsByName: executionToolsByName)
+                                responseMessages.append(contentsOf: stepResponseMessages)
+                                currentRequest = stepRequest
+                                currentRequest.abortSignal = operationRequest.abortSignal
+                                currentRequest.messages.append(contentsOf: stepResponseMessages)
+                                continue
+                            }
+                            steeringEndReason = steeringCompletionReason(
+                                finishReason: step.finishReason,
+                                waitingForToolResults: !executableCalls.isEmpty || !unresolvedCalls.isEmpty,
+                                stopped: stopped,
+                                reachedStepLimit: experimentalSteering?.hasPendingMessages == true
+                            )
                             continuation.finish()
                             return
                         }
@@ -445,10 +538,14 @@ extension AI {
                             if completedStep.responseMetadata.modelID == nil {
                                 completedStep.responseMetadata.modelID = stepModel.modelID
                             }
+                            completedStep.experimentalSteeringMessages = deliveredSteeringMessages
                             steps.append(completedStep)
+                            stepResults.append(completedStep)
                             await toolTelemetry.recordStepEnd(completedStep)
                             try stepDeadline.throwIfTimedOut()
-                            if try await isStopConditionMet(stopWhen, steps: steps) {
+                            let canContinue = !pendingProviderExecutedToolCallIDs.isEmpty || experimentalSteering?.hasPendingMessages == true
+                            if canContinue, try await isStopConditionMet(stopWhen, steps: steps) {
+                                steeringEndReason = .stopCondition
                                 try stepDeadline.throwIfTimedOut()
                                 continuation.finish()
                                 return
@@ -461,7 +558,14 @@ extension AI {
                             currentRequest = stepRequest
                             currentRequest.abortSignal = operationRequest.abortSignal
                             currentRequest.messages.append(contentsOf: stepResponseMessages)
-                            guard !pendingProviderExecutedToolCallIDs.isEmpty, index < maxSteps - 1 else {
+                            if !unresolvedCalls.isEmpty {
+                                steeringEndReason = .waitingForToolResults
+                                continuation.finish()
+                                return
+                            }
+                            let steeringPending = experimentalSteering?.hasPendingMessages == true
+                            guard (!pendingProviderExecutedToolCallIDs.isEmpty || steeringPending), index < maxSteps - 1 else {
+                                steeringEndReason = steeringPending ? .stopCondition : .finished
                                 try stepDeadline.throwIfTimedOut()
                                 continuation.finish()
                                 return
@@ -503,14 +607,18 @@ extension AI {
                         if completedStep.responseMetadata.modelID == nil {
                             completedStep.responseMetadata.modelID = stepModel.modelID
                         }
+                        completedStep.experimentalSteeringMessages = deliveredSteeringMessages
                         steps.append(completedStep)
+                        stepResults.append(completedStep)
                         await toolTelemetry.recordStepEnd(completedStep)
                         try stepDeadline.throwIfTimedOut()
-                        if toolExecution.needsUserApproval {
+                        if toolExecution.needsUserApproval || !unresolvedCalls.isEmpty || toolExecution.results.count < executableCalls.count {
+                            steeringEndReason = .waitingForToolResults
                             continuation.finish()
                             return
                         }
                         if try await isStopConditionMet(stopWhen, steps: steps) {
+                            steeringEndReason = .stopCondition
                             try stepDeadline.throwIfTimedOut()
                             continuation.finish()
                             return
@@ -533,14 +641,16 @@ extension AI {
                         }
                     }
 
+                    steeringEndReason = experimentalSteering?.hasPendingMessages == true ? .stopCondition : .finished
                     continuation.finish()
                 } catch {
+                    if isCausedByAbort(error) { steeringEndReason = .aborted }
                     continuation.finish(throwing: error)
                 }
-            }
+            } }
 
-            continuation.onTermination = { _ in
-                task.cancel()
+            continuation.onTermination = { termination in
+                if case .cancelled = termination { task.cancel() }
             }
         }
         let telemeteredStream = streamTextWithTelemetry(
@@ -552,7 +662,10 @@ extension AI {
             retryPolicy: .none,
             telemetry: telemetry,
             abortSignal: operationRequest.abortSignal,
-            logWarnings: false
+            logWarnings: false,
+            onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
+            onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: stepResults.steps, reason: operationRequest.abortSignal?.reason ?? error.map { String(describing: $0) })) },
+            reportsStepErrors: false
         )
         return streamWithTimeout(
             telemeteredStream,
@@ -593,7 +706,11 @@ extension AI {
         timeout: AIStreamTimeoutConfiguration? = nil,
         retryPolicy: AIRetryPolicy = .default,
         streamRetries: Int? = nil,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
         let request = LanguageModelRequest(
             messages: [.user(prompt)],
@@ -616,7 +733,7 @@ extension AI {
             abortSignal: abortSignal
         )
 
-        if executableTools.isEmpty && prepareStep == nil {
+        if executableTools.isEmpty && prepareStep == nil && experimentalSteering == nil {
             return streamText(
                 model: model,
                 request: request,
@@ -624,7 +741,10 @@ extension AI {
                 timeout: timeout,
                 retryPolicy: retryPolicy,
                 streamRetries: streamRetries,
-                telemetry: telemetry
+                telemetry: telemetry,
+                onStepError: onStepError,
+                onError: onError,
+                onAbort: onAbort
             )
         }
 
@@ -642,7 +762,11 @@ extension AI {
             timeout: timeout,
             retryPolicy: retryPolicy,
             streamRetries: streamRetries,
-            telemetry: telemetry
+            telemetry: telemetry,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort
         )
     }
 
@@ -656,8 +780,19 @@ extension AI {
         streamRetries: Int? = nil,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<AIOutputStreamPart<FinalOutput, PartialOutput>, Error> {
+        if experimentalSteering != nil || onStepError != nil || onError != nil || onAbort != nil {
+            let stepResults = AISteeringStepResults()
+            let languageStream = AISteeringContext.$streamResults.withValue(stepResults) {
+                streamText(model: model, request: output.requestForOutput(request, jsonInstruction), timeoutNanoseconds: timeoutNanoseconds, timeout: timeout, retryPolicy: retryPolicy, streamRetries: streamRetries, telemetry: telemetry, experimentalSteering: experimentalSteering, onStepError: onStepError, onError: onError, onAbort: onAbort)
+            }
+            return mapStructuredLanguageStreamToOutputStream(languageStream, output: output, providerID: model.providerID, repairText: repairText, stepResults: stepResults)
+        }
         if let timeoutNanoseconds, timeoutNanoseconds == 0 {
             return failingPartStream(AIError.invalidArgument(
                 argument: "timeoutNanoseconds",
@@ -743,10 +878,16 @@ extension AI {
         streamRetries: Int? = nil,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<AIOutputStreamPart<FinalOutput, PartialOutput>, Error> {
         let outputRequest = output.requestForOutput(request, jsonInstruction)
-        let languageStream = streamText(
+        let stepResults = AISteeringStepResults()
+        let languageStream = AISteeringContext.$streamResults.withValue(stepResults) {
+            streamText(
             model: model,
             request: outputRequest,
             executableTools: executableTools,
@@ -760,13 +901,19 @@ extension AI {
             timeout: timeout,
             retryPolicy: retryPolicy,
             streamRetries: streamRetries,
-            telemetry: telemetry
-        )
+            telemetry: telemetry,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort
+            )
+        }
         return mapStructuredLanguageStreamToOutputStream(
             languageStream,
             output: output,
             providerID: model.providerID,
-            repairText: repairText
+            repairText: repairText,
+            stepResults: stepResults
         )
     }
 
@@ -793,7 +940,11 @@ extension AI {
         streamRetries: Int? = nil,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) -> AsyncThrowingStream<AIOutputStreamPart<FinalOutput, PartialOutput>, Error> {
         streamText(
             model: model,
@@ -820,7 +971,11 @@ extension AI {
             streamRetries: streamRetries,
             telemetry: telemetry,
             jsonInstruction: jsonInstruction,
-            repairText: repairText
+            repairText: repairText,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort
         )
     }
 }

@@ -49,7 +49,7 @@ final class SpeechResultEngine: @unchecked Sendable {
         }
         var observed = request
         observed.abortSignal = controller.signal
-        observed.headers = withUserAgentSuffix(request.headers, "ai/7.0.153")
+        observed.headers = withUserAgentSuffix(request.headers, "ai/7.0.159")
         let callRequest = observed
         setup = Task { [weak self] in
             guard let self else { return }
@@ -172,17 +172,20 @@ final class SpeechResultEngine: @unchecked Sendable {
     func cancelIfIncomplete() { if !lock.withLock({ complete }) { cancel() } }
 
     private func fail(_ error: any Error) {
-        let resources = lock.withLock { () -> (StreamingSpeechModelResult?, Task<Void, Never>?, Task<Void, Never>?, AIAbortHandlerRegistration?)? in
+        let resources = lock.withLock { () -> (StreamingSpeechModelResult?, Task<Void, Never>?, Task<Void, Never>?, AIAbortHandlerRegistration?, AIDelayedPromise<StreamingSpeechPart?>?)? in
             guard !complete else { return nil }; complete = true
-            pendingRead?.reject(error); pendingRead = nil
-            if rawPromise.isPending { rawPromise.reject(error) }
-            if summaryPromise.isPending { summaryPromise.reject(error) }
-            let resources = (raw, setup, readerTask, registration)
+            let resources = (raw, setup, readerTask, registration, pendingRead)
+            pendingRead = nil
             raw = nil; iterator = nil; setup = nil; readerTask = nil; registration = nil
             return resources
         }
         guard let resources else { return }
         controller.abort(reason: String(describing: error)); resources.3?.cancel()
         input.cancelFromConsumer(); resources.0?.cancel(); resources.1?.cancel(); resources.2?.cancel()
+        // Settle observers only after cleanup, so a rejected setup cannot leave
+        // its unconsumed input alive after the caller observes the failure.
+        resources.4?.reject(error)
+        if rawPromise.isPending { rawPromise.reject(error) }
+        if summaryPromise.isPending { summaryPromise.reject(error) }
     }
 }

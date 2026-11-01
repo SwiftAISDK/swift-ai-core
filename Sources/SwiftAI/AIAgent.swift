@@ -11,6 +11,7 @@ public struct AIAgentCallOptions: Sendable {
     public var streamTimeout: AIStreamTimeoutConfiguration?
     public var retryPolicy: AIRetryPolicy?
     public var telemetry: Telemetry.Options?
+    public var experimentalSteering: AISteering?
 
     public init(
         requestOptions: AIChatRequestOptions = AIChatRequestOptions(),
@@ -18,7 +19,8 @@ public struct AIAgentCallOptions: Sendable {
         timeoutNanoseconds: UInt64? = nil,
         streamTimeout: AIStreamTimeoutConfiguration? = nil,
         retryPolicy: AIRetryPolicy? = nil,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        experimentalSteering: AISteering? = nil
     ) {
         self.requestOptions = requestOptions
         self.abortSignal = abortSignal
@@ -26,6 +28,7 @@ public struct AIAgentCallOptions: Sendable {
         self.streamTimeout = streamTimeout
         self.retryPolicy = retryPolicy
         self.telemetry = telemetry
+        self.experimentalSteering = experimentalSteering
     }
 }
 
@@ -77,6 +80,9 @@ public struct AIToolLoopAgent: AIAgent {
     public var streamTimeout: AIStreamTimeoutConfiguration?
     public var retryPolicy: AIRetryPolicy
     public var telemetry: Telemetry.Options?
+    public var onStepError: AIGenerateTextOnStepError?
+    public var onError: AIGenerationOnError?
+    public var onAbort: AIStreamTextOnAbort?
 
     public init(
         id: String? = nil,
@@ -92,7 +98,10 @@ public struct AIToolLoopAgent: AIAgent {
         timeoutNanoseconds: UInt64? = nil,
         streamTimeout: AIStreamTimeoutConfiguration? = nil,
         retryPolicy: AIRetryPolicy = .default,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) {
         self.id = id
         self.model = model
@@ -109,6 +118,9 @@ public struct AIToolLoopAgent: AIAgent {
         self.streamTimeout = streamTimeout
         self.retryPolicy = retryPolicy
         self.telemetry = telemetry
+        self.onStepError = onStepError
+        self.onError = onError
+        self.onAbort = onAbort
     }
 
     public init(
@@ -126,7 +138,10 @@ public struct AIToolLoopAgent: AIAgent {
         timeoutNanoseconds: UInt64? = nil,
         streamTimeout: AIStreamTimeoutConfiguration? = nil,
         retryPolicy: AIRetryPolicy = .default,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) {
         self.init(
             id: id,
@@ -142,7 +157,10 @@ public struct AIToolLoopAgent: AIAgent {
             timeoutNanoseconds: timeoutNanoseconds,
             streamTimeout: streamTimeout,
             retryPolicy: retryPolicy,
-            telemetry: telemetry
+            telemetry: telemetry,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort
         )
         self.toolCallers = toolCallers
     }
@@ -152,18 +170,27 @@ public struct AIToolLoopAgent: AIAgent {
     }
 
     public func generate(messages: [AIMessage], options: AIAgentCallOptions = AIAgentCallOptions()) async throws -> TextGenerationResult {
-        try await AI.generateText(
-            model: model,
-            request: try request(messages: messages, options: options),
-            executableTools: executableTools,
-            maxSteps: maxSteps,
-            toolCallers: toolCallers,
-            stopWhen: effectiveStopConditions,
-            prepareStep: prepareStep,
-            toolApproval: toolApproval,
-            retryPolicy: retryPolicy(for: options),
-            telemetry: options.telemetry ?? telemetry
-        )
+        do {
+            return try await AI.generateText(
+                model: model,
+                request: try request(messages: messages, options: options),
+                executableTools: executableTools,
+                maxSteps: maxSteps,
+                toolCallers: toolCallers,
+                stopWhen: effectiveStopConditions,
+                prepareStep: prepareStep,
+                toolApproval: toolApproval,
+                retryPolicy: retryPolicy(for: options),
+                telemetry: options.telemetry ?? telemetry,
+                experimentalSteering: options.experimentalSteering,
+                onStepError: onStepError
+            )
+        } catch {
+            if !isCausedByAbort(error), options.abortSignal?.isAborted != true {
+                try? await onError?(AIGenerationErrorEvent(error: error))
+            }
+            throw error
+        }
     }
 
     public func stream(prompt: String, options: AIAgentCallOptions = AIAgentCallOptions()) -> AsyncThrowingStream<LanguageStreamPart, Error> {
@@ -190,7 +217,11 @@ public struct AIToolLoopAgent: AIAgent {
             timeout: options.streamTimeout
                 ?? (options.timeoutNanoseconds == nil ? streamTimeout : nil),
             retryPolicy: retryPolicy(for: options),
-            telemetry: options.telemetry ?? telemetry
+            telemetry: options.telemetry ?? telemetry,
+            experimentalSteering: options.experimentalSteering,
+            onStepError: onStepError,
+            onError: onError,
+            onAbort: onAbort
         )
     }
 

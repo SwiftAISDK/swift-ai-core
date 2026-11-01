@@ -10,8 +10,13 @@ extension AI {
         request: LanguageModelRequest,
         retryPolicy: AIRetryPolicy = .default,
         telemetry: Telemetry.Options? = nil,
-        includeResponseBody: Bool = false
+        includeResponseBody: Bool = false,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> TextGenerationResult {
+        if let experimentalSteering {
+            return try await generateText(model: model, request: request, executableTools: [], maxSteps: 1, toolCallers: [:], retryPolicy: retryPolicy, telemetry: telemetry, includeResponseBody: includeResponseBody, experimentalSteering: experimentalSteering, onStepError: onStepError)
+        }
         let request = try await downloadUnsupportedPromptAssets(
             in: prepareLanguageModelCallOptions(request),
             supportedURLs: model.supportedURLs
@@ -29,7 +34,10 @@ extension AI {
             warnings: { $0.warnings },
             providerMetadata: { $0.providerMetadata },
             responseMetadata: { $0.responseMetadata },
-            wrapLanguageModelCall: true
+            wrapLanguageModelCall: true,
+            stepError: { error in
+                try? await onStepError?(AIGenerateTextStepErrorEvent(stepNumber: 0, providerID: model.providerID, modelID: model.modelID, request: request, error: error))
+            }
         ) {
             var result = try await model.generate(request)
             result = try await materializeGeneratedFiles(
@@ -91,23 +99,30 @@ extension AI {
         repairToolCall: AIToolCallRepair? = nil,
         retryPolicy: AIRetryPolicy = .default,
         telemetry: Telemetry.Options? = nil,
-        includeResponseBody: Bool = false
+        includeResponseBody: Bool = false,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> TextGenerationResult {
-        guard !executableTools.isEmpty || prepareStep != nil else {
+        guard !executableTools.isEmpty || prepareStep != nil || experimentalSteering != nil else {
             return try await generateText(
                 model: model,
                 request: request,
                 retryPolicy: retryPolicy,
                 telemetry: telemetry,
-                includeResponseBody: includeResponseBody
+                includeResponseBody: includeResponseBody,
+                onStepError: onStepError
             )
         }
+        try experimentalSteering?.start()
+        var steeringEndReason: AISteeringNotDeliveredReason = .error
+        defer { experimentalSteering?.end(request.abortSignal?.isAborted == true || Task.isCancelled ? .aborted : steeringEndReason) }
+        do {
         guard maxSteps > 0 else {
             throw AIError.invalidArgument(argument: "maxSteps", message: "maxSteps must be greater than zero.")
         }
 
         let initialRequest = request
-        var currentRequest = request
+        var currentRequest = initialRequest
 
         var steps: [AIToolStep] = []
         var allToolResults: [AIToolResult] = []
@@ -145,24 +160,31 @@ extension AI {
                 allApprovalResponses.append(contentsOf: historicalApprovalExecution.approvalResponses)
             }
 
-            let prepared = try await prepareStep?(AIPrepareStepContext(
+            let steeringMessages = experimentalSteering?.takeMessages() ?? []
+            currentRequest.messages.append(contentsOf: steeringMessages)
+            var stepContext = AIPrepareStepContext(
                 model: model,
                 stepNumber: index,
                 steps: steps,
                 request: currentRequest,
                 initialRequest: initialRequest,
                 responseMessages: responseMessages
-            ))
+            )
+            stepContext.experimentalSteeringMessages = steeringMessages
+            let prepared = try await prepareStep?(stepContext)
             let stepModel = prepared?.model ?? model
             let stepTools = prepared?.executableTools ?? executableTools
             let preparedTools = try await toolDiscovery.prepare(tools: stepTools, routing: toolCallers)
             let executionTools = preparedTools.executionTools
-            let modelToolsByName = try toolsByName(from: preparedTools.modelTools)
+            var modelToolsByName = try toolsByName(from: preparedTools.modelTools)
             let directExecutionTools = executionTools.filter {
                 modelToolsByName[$0.name] != nil
             }
             let executionToolsByName = try toolsByName(from: directExecutionTools)
             var stepRequest = prepared?.request ?? currentRequest
+            if stepRequest.abortSignal !== initialRequest.abortSignal {
+                stepRequest.abortSignal = mergeAbortSignals(stepRequest.abortSignal, initialRequest.abortSignal)
+            }
             stepRequest.toolCallConcurrency = stepRequest.toolCallConcurrency ?? initialRequest.toolCallConcurrency
             stepRequest.messages = appendToolCallerMessages(
                 stepRequest.messages,
@@ -174,6 +196,10 @@ extension AI {
                 stepRequest.tools.merge(toolsDictionary(from: preparedTools.modelTools)) { _, typed in typed }
             }
 
+            let schemaOnlyToolNames: Set<String> = experimentalSteering == nil ? [] : Set(stepRequest.tools.keys).subtracting(executionToolsByName.keys)
+            if experimentalSteering != nil {
+                modelToolsByName = modelValidationTools(stepRequest.tools, explicit: modelToolsByName)
+            }
             await toolTelemetry.recordStepStart(
                 index: index,
                 maxSteps: maxSteps,
@@ -181,13 +207,23 @@ extension AI {
                 request: stepRequest,
                 tools: executionTools
             )
-            var result = try await generateText(
+            let deliveredSteeringMessages = experimentalSteering?.resolveTakenMessages(stepNumber: index, sentMessages: stepRequest.messages) ?? []
+            let previousSteps = steps
+            var result = try await AITelemetryStepContext.$stepNumber.withValue(index) {
+                try await generateText(
                 model: stepModel,
                 request: stepRequest,
                 retryPolicy: retryPolicy,
                 telemetry: telemetry,
-                includeResponseBody: includeResponseBody
-            )
+                includeResponseBody: includeResponseBody,
+                onStepError: { event in
+                    var event = event
+                    event.stepNumber = index
+                    event.steps = previousSteps
+                    try? await onStepError?(event)
+                }
+                )
+            }
             allWarnings.append(contentsOf: result.warnings)
             totalUsage = sumTokenUsage(totalUsage, result.usage)
             var forwardedCalls: [AIToolCall] = []
@@ -219,7 +255,8 @@ extension AI {
             }
             result.toolCalls = forwardedCalls
             result.replaceToolCallContent(with: forwardedCalls)
-            let executableCalls = result.toolCalls.filter { !$0.providerExecuted && !preExecutionToolResultIDs.contains($0.id) }
+            let executableCalls = result.toolCalls.filter { !$0.providerExecuted && !preExecutionToolResultIDs.contains($0.id) && !schemaOnlyToolNames.contains($0.name) }
+            let unresolvedCalls = result.toolCalls.filter { !$0.providerExecuted && !preExecutionToolResultIDs.contains($0.id) && schemaOnlyToolNames.contains($0.name) }
             if !preExecutionToolResults.isEmpty {
                 allToolResults.append(contentsOf: preExecutionToolResults)
                 result.appendGeneratedToolContent(
@@ -232,7 +269,7 @@ extension AI {
             if executableCalls.isEmpty || !isAutomaticToolExecutionAllowed(finishReason: result.finishReason) {
                 let finalContent = allContent + result.content
                 let finalResponseMessages = responseMessages + (try await makeResponseMessages(from: result.content))
-                let finalStep = AIToolStep(
+                var finalStep = AIToolStep(
                     index: index,
                     providerID: stepModel.providerID,
                     modelID: stepModel.modelID,
@@ -251,16 +288,38 @@ extension AI {
                     providerMetadata: result.providerMetadata,
                     responseMetadata: result.responseMetadata.includingBody(includeResponseBody)
                 )
+                finalStep.experimentalSteeringMessages = deliveredSteeringMessages
+                let finalText = result.text
                 result.toolResults = allToolResults
                 result.toolApprovalRequests = allApprovalRequests
                 result.toolApprovalResponses = allApprovalResponses
                 result.content = finalContent
                 result.refreshDerivedContent()
+                if experimentalSteering != nil { result.text = finalText }
                 result.usage = totalUsage
                 result.warnings = allWarnings
                 result.responseMessages = finalResponseMessages
                 result.steps = steps + [finalStep]
                 await toolTelemetry.recordStepEnd(finalStep)
+                let canContinueWithSteering = experimentalSteering?.hasPendingMessages == true
+                    && unresolvedCalls.isEmpty && executableCalls.isEmpty
+                    && result.finishReason != "interrupted" && result.finishReason != "error"
+                let stopped = canContinueWithSteering ? try await isStopConditionMet(stopWhen, steps: result.steps) : false
+                if canContinueWithSteering, !stopped, index < maxSteps - 1 {
+                    steps.append(finalStep)
+                    allContent = finalContent
+                    responseMessages = finalResponseMessages
+                    currentRequest = stepRequest
+                    currentRequest.messages.append(contentsOf: try await makeResponseMessages(from: finalStep.content))
+                    lastResult = result
+                    continue
+                }
+                steeringEndReason = steeringCompletionReason(
+                    finishReason: result.finishReason,
+                    waitingForToolResults: !unresolvedCalls.isEmpty || !executableCalls.isEmpty,
+                    stopped: stopped,
+                    reachedStepLimit: experimentalSteering?.hasPendingMessages == true && index == maxSteps - 1
+                )
                 return result
             }
 
@@ -285,7 +344,7 @@ extension AI {
             )
             let stepResponseMessages = try await makeResponseMessages(from: result.content)
             allContent.append(contentsOf: result.content)
-            let step = AIToolStep(
+            var step = AIToolStep(
                 index: index,
                 providerID: stepModel.providerID,
                 modelID: stepModel.modelID,
@@ -304,23 +363,28 @@ extension AI {
                 providerMetadata: result.providerMetadata,
                 responseMetadata: result.responseMetadata.includingBody(includeResponseBody)
             )
+            step.experimentalSteeringMessages = deliveredSteeringMessages
             steps.append(step)
             await toolTelemetry.recordStepEnd(step)
 
             result.toolResults = allToolResults
             result.toolApprovalRequests = allApprovalRequests
             result.toolApprovalResponses = allApprovalResponses
+            let finalText = result.text
             result.content = allContent
             result.refreshDerivedContent()
+            if experimentalSteering != nil { result.text = finalText }
             result.usage = totalUsage
             result.warnings = allWarnings
             result.responseMessages = responseMessages + stepResponseMessages
             result.steps = steps
             lastResult = result
-            if toolExecution.needsUserApproval {
+            if toolExecution.needsUserApproval || !unresolvedCalls.isEmpty || toolExecution.results.count < executableCalls.count {
+                steeringEndReason = .waitingForToolResults
                 return result
             }
             if try await isStopConditionMet(stopWhen, steps: steps) {
+                steeringEndReason = .stopCondition
                 return result
             }
             responseMessages.append(contentsOf: stepResponseMessages)
@@ -328,19 +392,26 @@ extension AI {
             currentRequest.messages.append(contentsOf: stepResponseMessages)
         }
 
+        steeringEndReason = experimentalSteering?.hasPendingMessages == true ? .stopCondition : .finished
         guard var result = lastResult else {
             return try await generateText(model: model, request: currentRequest, retryPolicy: retryPolicy, telemetry: telemetry)
         }
         result.toolResults = allToolResults
         result.toolApprovalRequests = allApprovalRequests
         result.toolApprovalResponses = allApprovalResponses
+        let finalText = result.text
         result.content = allContent
         result.refreshDerivedContent()
+        if experimentalSteering != nil { result.text = finalText }
         result.usage = totalUsage
         result.warnings = allWarnings
         result.responseMessages = responseMessages
         result.steps = steps
         return result
+        } catch {
+            if isCausedByAbort(error) { experimentalSteering?.end(.aborted) }
+            throw error
+        }
     }
 
     public static func generateText(
@@ -373,7 +444,9 @@ extension AI {
         extraBody: [String: JSONValue] = [:],
         headers: [String: String] = [:],
         abortSignal: AIAbortSignal? = nil,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> TextGenerationResult {
         let request = LanguageModelRequest(
             messages: [.user(prompt)],
@@ -396,13 +469,14 @@ extension AI {
             abortSignal: abortSignal
         )
 
-        if executableTools.isEmpty && prepareStep == nil {
+        if executableTools.isEmpty && prepareStep == nil && experimentalSteering == nil {
             return try await generateText(
                 model: model,
                 request: request,
                 retryPolicy: retryPolicy,
                 telemetry: telemetry,
-                includeResponseBody: includeResponseBody
+                includeResponseBody: includeResponseBody,
+                onStepError: onStepError
             )
         }
 
@@ -419,7 +493,9 @@ extension AI {
             repairToolCall: repairToolCall,
             retryPolicy: retryPolicy,
             telemetry: telemetry,
-            includeResponseBody: includeResponseBody
+            includeResponseBody: includeResponseBody,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError
         )
     }
 
@@ -430,9 +506,19 @@ extension AI {
         retryPolicy: AIRetryPolicy = .default,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> AIOutputGenerationResult<FinalOutput> {
-        try await AIDeprecationLogging.$suppressObjectWarnings.withValue(true) {
+        if experimentalSteering != nil || onStepError != nil {
+            let text = try await generateText(model: model, request: output.requestForOutput(request, jsonInstruction), retryPolicy: retryPolicy, telemetry: telemetry, experimentalSteering: experimentalSteering, onStepError: onStepError)
+            let result = try await output.optionalResultFromTextResult(text, model.providerID, repairText)
+            guard let value = result.output else {
+                throw AIError.invalidResponse(provider: model.providerID, message: "No output generated.")
+            }
+            return AIOutputGenerationResult(output: value, text: result.text, rawOutput: result.rawOutput, reasoning: result.reasoning, finishReason: result.finishReason, usage: result.usage, warnings: result.warnings, providerMetadata: result.providerMetadata, responseMetadata: result.responseMetadata, textResult: result.textResult)
+        }
+        return try await AIDeprecationLogging.$suppressObjectWarnings.withValue(true) {
             try await output.generateFromRequest(
                 model,
                 request,
@@ -459,7 +545,9 @@ extension AI {
         retryPolicy: AIRetryPolicy = .default,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> AIOutputGenerationResult<FinalOutput?> {
         let outputRequest = output.requestForOutput(request, jsonInstruction)
         let textResult = try await generateText(
@@ -474,7 +562,9 @@ extension AI {
             toolApprovalSecret: toolApprovalSecret,
             repairToolCall: repairToolCall,
             retryPolicy: retryPolicy,
-            telemetry: telemetry
+            telemetry: telemetry,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError
         )
         let finalStepResult = structuredOutputTextResult(textResult)
         return try await output.optionalResultFromTextResult(
@@ -504,7 +594,9 @@ extension AI {
         retryPolicy: AIRetryPolicy = .default,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> AIOutputGenerationResult<FinalOutput> {
         try await generateText(
             model: model,
@@ -528,7 +620,9 @@ extension AI {
             retryPolicy: retryPolicy,
             telemetry: telemetry,
             jsonInstruction: jsonInstruction,
-            repairText: repairText
+            repairText: repairText,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError
         )
     }
 
@@ -560,7 +654,9 @@ extension AI {
         retryPolicy: AIRetryPolicy = .default,
         telemetry: Telemetry.Options? = nil,
         jsonInstruction: AIJSONInstruction? = nil,
-        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil
+        repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil
     ) async throws -> AIOutputGenerationResult<FinalOutput?> {
         try await generateText(
             model: model,
@@ -592,7 +688,9 @@ extension AI {
             retryPolicy: retryPolicy,
             telemetry: telemetry,
             jsonInstruction: jsonInstruction,
-            repairText: repairText
+            repairText: repairText,
+            experimentalSteering: experimentalSteering,
+            onStepError: onStepError
         )
     }
 }

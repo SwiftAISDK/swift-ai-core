@@ -470,6 +470,9 @@ public protocol AIRealtimeModelV4: Sendable {
     func getServerWebSocketConfig() throws
         -> AIRealtimeWebSocketConfiguration
 
+    func getResolvedServerWebSocketConfig() async throws
+        -> AIRealtimeWebSocketConfiguration
+
     func doCreateClientSecret(
         _ options: AIRealtimeClientSecretOptions
     ) async throws -> AIRealtimeClientSecretResult
@@ -500,6 +503,13 @@ public extension AIRealtimeModelV4 {
     var specificationVersion: String { "v4" }
     var provider: String { providerID }
     var capabilities: AIRealtimeModelCapabilities? { nil }
+
+    /// The asynchronous connection hook permits per-connection credentials while
+    /// retaining the synchronous hook for existing static-credential models.
+    func getResolvedServerWebSocketConfig() async throws
+        -> AIRealtimeWebSocketConfiguration {
+        try getServerWebSocketConfig()
+    }
 
     func getServerWebSocketConfig() throws
         -> AIRealtimeWebSocketConfiguration {

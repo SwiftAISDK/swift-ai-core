@@ -30,8 +30,10 @@ struct TelemetryDispatcher: Sendable {
 
     func record(_ event: Telemetry.Event) async {
         guard isEnabled else { return }
+        var emitted = event
+        emitted.aiVersion = "7.0.159"
         for integration in integrations {
-            await integration.record(event)
+            await integration.record(emitted)
         }
     }
 
@@ -50,13 +52,15 @@ struct TelemetryDispatcher: Sendable {
         for integration in integrations {
             let innerExecute = execute
             execute = {
-                try await integration.executeLanguageModelCall(Telemetry.LanguageModelCallContext(
+                var context = Telemetry.LanguageModelCallContext(
                     callID: callID,
                     operationID: operationID,
                     providerID: providerID,
                     modelID: modelID,
                     execute: innerExecute
-                ))
+                )
+                context.aiVersion = "7.0.159"
+                return try await integration.executeLanguageModelCall(context)
             }
         }
         return try await execute()
@@ -76,12 +80,14 @@ struct TelemetryDispatcher: Sendable {
         for integration in integrations {
             let innerExecute = execute
             execute = {
-                try await integration.executeTool(Telemetry.ToolExecutionContext(
+                var context = Telemetry.ToolExecutionContext(
                     callID: callID,
                     toolCallID: toolCallID,
                     toolName: toolName,
                     execute: innerExecute
-                ))
+                )
+                context.aiVersion = "7.0.159"
+                return try await integration.executeTool(context)
             }
         }
         return try await execute()
@@ -139,6 +145,10 @@ struct AIToolLoopTelemetryContext: Sendable {
             durationNanoseconds: DispatchTime.now().uptimeNanoseconds - started,
             input: stepTelemetryInput(index: index, maxSteps: maxSteps, request: request, tools: tools)
         ))
+    }
+
+    func recordStepError(_ event: AIGenerateTextStepErrorEvent) async {
+        await dispatcher.record(telemetryEvent(kind: .stepError, callID: callID, operationID: "\(operationID).step", providerID: event.providerID, modelID: event.modelID, options: telemetry, input: ["stepNumber": .number(Double(event.stepNumber))], errorDescription: String(describing: event.error)))
     }
 
     func recordStepEnd(_ step: AIToolStep) async {

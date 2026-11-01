@@ -195,7 +195,6 @@ public func fixJson(_ input: String) -> String {
                 lastValidIndex = index
                 _ = stack.popLast()
             } else {
-                lastValidIndex = index
                 processValueStart(character, index: index, swapState: .insideArrayAfterValue)
             }
 

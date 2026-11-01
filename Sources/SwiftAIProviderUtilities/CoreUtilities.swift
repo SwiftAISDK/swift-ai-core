@@ -139,11 +139,21 @@ public func isCustomReasoning(_ reasoning: String?) -> Bool {
 }
 
 public func mapReasoningToProviderEffort(
-    reasoning: String,
+    reasoning: String?,
     effortMap: [String: String],
-    warnings: inout [AIWarning]
+    warnings: inout [AIWarning],
+    providerOptionsEffort: String? = nil
 ) -> String? {
-    guard let mapped = effortMap[reasoning] else {
+    if let providerOptionsEffort { return providerOptionsEffort }
+    guard let reasoning, reasoning != "provider-default" else { return nil }
+    let levels = ["minimal", "low", "medium", "high", "xhigh", "max"]
+    guard reasoning == "none" || levels.contains(reasoning) else {
+        warnings.append(AIWarning(type: "unsupported", feature: "reasoning", message: "reasoning \"\(reasoning)\" is not supported by this model."))
+        return nil
+    }
+    let index = levels.firstIndex(of: reasoning) ?? -1
+    let candidates = [reasoning] + Array(levels.prefix(max(0, index)).reversed()) + Array(levels.dropFirst(index + 1))
+    guard let level = candidates.first(where: { effortMap[$0] != nil }), let mapped = effortMap[level] else {
         warnings.append(AIWarning(
             type: "unsupported",
             feature: "reasoning",
@@ -176,7 +186,13 @@ public func mapReasoningToProviderBudget(
     ],
     warnings: inout [AIWarning]
 ) -> Int? {
-    guard let percentage = budgetPercentages[reasoning] else {
+    if reasoning == "none" {
+        warnings.append(AIWarning(type: "compatibility", feature: "reasoning", message:
+            "reasoning \"none\" is not supported by this model. mapped to the minimum reasoning budget of \(minReasoningBudget) tokens."))
+        return minReasoningBudget
+    }
+    let defaults: [String: Double] = ["minimal": 0.02, "low": 0.1, "medium": 0.3, "high": 0.6, "xhigh": 0.9, "max": 0.95]
+    guard let percentage = budgetPercentages[reasoning] ?? defaults[reasoning] else {
         warnings.append(AIWarning(
             type: "unsupported",
             feature: "reasoning",

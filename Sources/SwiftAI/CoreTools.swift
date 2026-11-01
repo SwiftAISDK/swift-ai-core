@@ -44,6 +44,7 @@ public struct AIPrepareStepContext: Sendable {
     public var request: LanguageModelRequest
     public var initialRequest: LanguageModelRequest
     public var responseMessages: [AIMessage]
+    public var experimentalSteeringMessages: [AIMessage] = []
 
     public init(
         model: any LanguageModel,

@@ -41,15 +41,8 @@ func optionalSum(_ lhs: Int?, _ rhs: Int?) -> Int? {
 }
 
 func isCancellationTelemetryError(_ error: Error) -> Bool {
-    if error is CancellationError {
-        return true
-    }
-    if error is AIAbortError {
-        return true
-    }
-    if let retryError = error as? AIRetryError, retryError.reason == .cancelled {
-        return true
-    }
+    if error is CancellationError || error is AIAbortError { return true }
+    if let retry = error as? AIRetryError, retry.reason == .cancelled { return true }
     return false
 }
 

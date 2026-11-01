@@ -23,6 +23,19 @@ func toolsByName(from tools: [AITool]) throws -> [String: AITool] {
     return output
 }
 
+
+/// Schema-only tools may be fulfilled by the caller after this run. They are
+/// validated like executable tools, but never placed in the execution table.
+func modelValidationTools(_ declarations: [String: JSONValue], explicit: [String: AITool]) -> [String: AITool] {
+    var tools = explicit
+    for (name, declaration) in declarations where tools[name] == nil {
+        tools[name] = AITool(name: name, description: declaration["description"]?.stringValue, parameters: declaration["parameters"] ?? declaration["inputSchema"] ?? declaration) { _ in
+            throw AINoSuchToolError(toolName: name)
+        }
+    }
+    return tools
+}
+
 struct AIToolExecutionBatch: Sendable {
     var results: [AIToolResult] = []
     var approvalRequests: [AIToolApprovalRequest] = []

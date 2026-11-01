@@ -4,7 +4,7 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 
 
-private let aiDecisionUserAgent = "ai/7.0.153"
+private let aiDecisionUserAgent = "ai/7.0.159"
 
 extension AI {
     /// Decides answers using a direct Decision Model V4 instance.

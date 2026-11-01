@@ -43,6 +43,10 @@ public struct LanguageGenerationOptions: Sendable {
     public var abortSignal: AIAbortSignal?
     public var retryPolicy: AIRetryPolicy
     public var telemetry: Telemetry.Options?
+    public var experimentalSteering: AISteering?
+    public var onStepError: AIGenerateTextOnStepError?
+    public var onError: AIGenerationOnError?
+    public var onAbort: AIStreamTextOnAbort?
 
     public init(
         temperature: Double? = nil,
@@ -62,7 +66,11 @@ public struct LanguageGenerationOptions: Sendable {
         headers: [String: String] = [:],
         abortSignal: AIAbortSignal? = nil,
         retryPolicy: AIRetryPolicy = .default,
-        telemetry: Telemetry.Options? = nil
+        telemetry: Telemetry.Options? = nil,
+        experimentalSteering: AISteering? = nil,
+        onStepError: AIGenerateTextOnStepError? = nil,
+        onError: AIGenerationOnError? = nil,
+        onAbort: AIStreamTextOnAbort? = nil
     ) {
         self.temperature = temperature
         self.topP = topP
@@ -82,6 +90,10 @@ public struct LanguageGenerationOptions: Sendable {
         self.abortSignal = abortSignal
         self.retryPolicy = retryPolicy
         self.telemetry = telemetry
+        self.experimentalSteering = experimentalSteering
+        self.onStepError = onStepError
+        self.onError = onError
+        self.onAbort = onAbort
     }
 
     public static let `default` = LanguageGenerationOptions()
@@ -630,7 +642,9 @@ public extension AI {
                 request: request,
                 retryPolicy: options.retryPolicy,
                 telemetry: options.telemetry,
-                includeResponseBody: options.includeResponseBody
+                includeResponseBody: options.includeResponseBody,
+                experimentalSteering: options.experimentalSteering,
+                onStepError: options.onStepError
             )
         }
 
@@ -644,7 +658,9 @@ public extension AI {
             toolApproval: tools.approval,
             retryPolicy: options.retryPolicy,
             telemetry: options.telemetry,
-            includeResponseBody: options.includeResponseBody
+            includeResponseBody: options.includeResponseBody,
+                experimentalSteering: options.experimentalSteering,
+                onStepError: options.onStepError
         )
     }
 
@@ -663,7 +679,9 @@ public extension AI {
             retryPolicy: options.retryPolicy,
             telemetry: options.telemetry,
             jsonInstruction: jsonInstruction,
-            repairText: repairText
+            repairText: repairText,
+            experimentalSteering: options.experimentalSteering,
+            onStepError: options.onStepError
         )
     }
 
@@ -745,7 +763,11 @@ public extension AI {
                 request: request,
                 timeoutNanoseconds: timeoutNanoseconds,
                 retryPolicy: options.retryPolicy,
-                telemetry: options.telemetry
+                telemetry: options.telemetry,
+                experimentalSteering: options.experimentalSteering,
+                onStepError: options.onStepError,
+                onError: options.onError,
+                onAbort: options.onAbort
             )
         }
 
@@ -759,7 +781,11 @@ public extension AI {
             toolApproval: tools.approval,
             timeoutNanoseconds: timeoutNanoseconds,
             retryPolicy: options.retryPolicy,
-            telemetry: options.telemetry
+            telemetry: options.telemetry,
+                experimentalSteering: options.experimentalSteering,
+                onStepError: options.onStepError,
+                onError: options.onError,
+                onAbort: options.onAbort
         )
     }
 
@@ -780,7 +806,11 @@ public extension AI {
             retryPolicy: options.retryPolicy,
             telemetry: options.telemetry,
             jsonInstruction: jsonInstruction,
-            repairText: repairText
+            repairText: repairText,
+            experimentalSteering: options.experimentalSteering,
+            onStepError: options.onStepError,
+            onError: options.onError,
+            onAbort: options.onAbort
         )
     }
 
