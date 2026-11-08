@@ -169,6 +169,8 @@ private func parseToolCallWithoutRepair(
     try validateToolArguments(refinedArguments, schema: tool.parameters, call: call)
 
     var parsedCall = call
+    parsedCall.toolMetadata = tool.metadata
+    parsedCall.title = tool.title
     if arguments != refinedArguments {
         parsedCall.arguments = canonicalJSONText(refinedArguments) ?? parsedCall.arguments
     }

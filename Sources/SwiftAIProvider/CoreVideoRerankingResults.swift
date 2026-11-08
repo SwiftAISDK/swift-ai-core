@@ -68,7 +68,14 @@ public struct VideoGenerationRequest: Sendable {
     }
 }
 
+/// Confirmation of delivery to caller-managed storage. Contains no upload URL or bytes.
+public struct UploadedVideo: Equatable, Sendable {
+    public var mediaType: String
+    public init(mediaType: String) { self.mediaType = mediaType }
+}
+
 public struct VideoGenerationResult: Sendable {
+    public var uploadedVideos: [UploadedVideo] = []
     public var urls: [String]
     public var base64Videos: [String]
     public var operationID: String?
@@ -78,7 +85,7 @@ public struct VideoGenerationResult: Sendable {
     public var providerMetadata: [String: JSONValue]
     public var requestMetadata: AIRequestMetadata
     public var responseMetadata: AIResponseMetadata
-
+    /// Preserves the exact public selector released in core 1.2.0.
     public init(
         urls: [String],
         base64Videos: [String] = [],
@@ -90,6 +97,22 @@ public struct VideoGenerationResult: Sendable {
         requestMetadata: AIRequestMetadata = AIRequestMetadata(),
         responseMetadata: AIResponseMetadata = AIResponseMetadata()
     ) {
+        self.init(urls: urls, base64Videos: base64Videos, operationID: operationID, mediaType: mediaType, rawValue: rawValue, warnings: warnings, providerMetadata: providerMetadata, requestMetadata: requestMetadata, responseMetadata: responseMetadata, uploadedVideos: [])
+    }
+
+    public init(
+        urls: [String],
+        base64Videos: [String] = [],
+        operationID: String? = nil,
+        mediaType: String? = nil,
+        rawValue: JSONValue,
+        warnings: [AIWarning] = [],
+        providerMetadata: [String: JSONValue] = [:],
+        requestMetadata: AIRequestMetadata = AIRequestMetadata(),
+        responseMetadata: AIResponseMetadata = AIResponseMetadata(),
+        uploadedVideos: [UploadedVideo]
+    ) {
+        self.uploadedVideos = uploadedVideos
         self.urls = urls
         self.base64Videos = base64Videos
         self.operationID = operationID

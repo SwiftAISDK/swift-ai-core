@@ -998,6 +998,9 @@ public func downloadURL(
            let location = response.headerValue("location"),
            let nextURL = URL(string: location, relativeTo: url)?.absoluteURL {
             _ = try validatedRemoteURL(nextURL.absoluteString, trustedOrigin: trustedOrigin)
+            guard !(url.scheme?.lowercased() == "https" && nextURL.scheme?.lowercased() == "http") else {
+                throw AIDownloadError(url: string, message: "Redirect from HTTPS to HTTP was blocked")
+            }
             currentHeaders = redirectedRequestHeaders(currentHeaders, from: url, to: nextURL)
             current = nextURL.absoluteString
             continue
@@ -1060,6 +1063,9 @@ public func streamDownloadURL(
            let nextURL = URL(string: location, relativeTo: url)?.absoluteURL {
             response.cancelBody()
             _ = try validatedRemoteURL(nextURL.absoluteString, trustedOrigin: trustedOrigin)
+            guard !(url.scheme?.lowercased() == "https" && nextURL.scheme?.lowercased() == "http") else {
+                throw AIDownloadError(url: string, message: "Redirect from HTTPS to HTTP was blocked")
+            }
             currentHeaders = redirectedRequestHeaders(currentHeaders, from: url, to: nextURL)
             current = nextURL.absoluteString
             continue

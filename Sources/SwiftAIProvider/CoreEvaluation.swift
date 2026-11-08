@@ -10,7 +10,7 @@ public enum AIEvaluationQuestionType: String, CaseIterable, Codable, Equatable, 
 }
 
 /// Shared question shape for experimental Evaluation and Decision Model V4.
-/// Decision permits omitted non-Box instructions; legacy Evaluation requires them.
+/// Decision permits omitted instructions; legacy Evaluation requires them.
 public enum AIEvaluationQuestion: Equatable, Sendable {
     /// Select one label from a nonempty criteria map.
     case choice(instructions: JSONValue = .null, criteria: [String: JSONValue])
@@ -19,7 +19,7 @@ public enum AIEvaluationQuestion: Equatable, Sendable {
     /// Return P(true), optionally using descriptions keyed by `true` and `false`.
     case boolean(instructions: JSONValue = .null, criteria: [String: JSONValue]? = nil)
     /// Locate a rectangle in image evidence using normalized edges.
-    case box(instructions: JSONValue)
+    case box(instructions: JSONValue = .null)
 
     public var type: AIEvaluationQuestionType {
         switch self {
@@ -328,7 +328,7 @@ public func validateEvaluationInput(
 
     for (id, question) in questions {
         let argument = "questions.\(id)"
-        guard (decision && question.type != .box && question.instructions == .null) || isEvaluationInput(question.instructions) else {
+        guard (decision && question.instructions == .null) || isEvaluationInput(question.instructions) else {
             throw AIError.invalidArgument(
                 argument: argument,
                 message: "instructions must be a JSON-compatible string, object, or array"

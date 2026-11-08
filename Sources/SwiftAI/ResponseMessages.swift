@@ -22,7 +22,7 @@ public func toResponseMessages(
 
     for part in content {
         switch part {
-        case let .text(text, _) where text.isEmpty:
+        case let .text(text, metadata) where text.isEmpty && metadata.isEmpty:
             continue
         case let .reasoning(text, _) where text.isEmpty:
             continue

@@ -250,3 +250,21 @@ private func redirectSecurityHeadersIncludingBlockedNames() -> [String: String] 
         "User-Agent": "SwiftAISDK/Test"
     ]
 }
+
+
+@Suite("Weekly20261108 HTTPS downgrade protection")
+struct Weekly20261108RedirectTests {
+    @Test func bufferedAndStreamingDownloadsRejectDowngradesBeforeSecondSend() async throws {
+        let transport = RedirectSecurityTransport(responses: [.init(statusCode: 302, headers: ["location": "http://public.example.com/file"])])
+        await #expect(throws: AIDownloadError.self) { try await downloadURL("https://public.example.com/start", transport: transport) }
+        #expect(await transport.requests().count == 1)
+        let streaming = RedirectStreamingSecurityTransport(responses: [redirectSecurityStreamResponse(statusCode: 302, headers: ["location": "http://public.example.com/file"])])
+        await #expect(throws: AIDownloadError.self) { try await streamDownloadURL("https://public.example.com/start", transport: streaming) }
+        #expect(await streaming.requests().count == 1)
+    }
+    @Test func httpMayUpgradeToHTTPS() async throws {
+        let transport = RedirectSecurityTransport(responses: [.init(statusCode: 302, headers: ["location": "https://public.example.com/file"]), .init(statusCode: 200)])
+        _ = try await downloadURL("http://public.example.com/start", transport: transport)
+        #expect(await transport.requests().count == 2)
+    }
+}

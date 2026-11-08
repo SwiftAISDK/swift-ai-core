@@ -30,8 +30,8 @@ struct TelemetryDispatcher: Sendable {
 
     func record(_ event: Telemetry.Event) async {
         guard isEnabled else { return }
-        var emitted = event
-        emitted.aiVersion = "7.0.159"
+        var emitted = filteredTelemetryEvent(event)
+        emitted.aiVersion = "7.0.165"
         for integration in integrations {
             await integration.record(emitted)
         }
@@ -59,7 +59,7 @@ struct TelemetryDispatcher: Sendable {
                     modelID: modelID,
                     execute: innerExecute
                 )
-                context.aiVersion = "7.0.159"
+                context.aiVersion = "7.0.165"
                 return try await integration.executeLanguageModelCall(context)
             }
         }
@@ -86,7 +86,7 @@ struct TelemetryDispatcher: Sendable {
                     toolName: toolName,
                     execute: innerExecute
                 )
-                context.aiVersion = "7.0.159"
+                context.aiVersion = "7.0.165"
                 return try await integration.executeTool(context)
             }
         }

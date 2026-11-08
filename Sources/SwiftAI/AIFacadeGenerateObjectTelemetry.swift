@@ -67,7 +67,9 @@ func generateObjectResult<Output: Sendable>(
                 providerID: model.providerID,
                 modelID: model.modelID
             ) {
-                try await model.generate(request)
+                var result = try await model.generate(request)
+                result.requestMetadata = sanitizedRequestMetadata(result.requestMetadata)
+                return result
             }
             textResult = generatedResult
             await callbacks?.onStepFinish?(AIObjectGenerationStepFinishEvent(

@@ -2,6 +2,7 @@ import Foundation
 
 
 public struct AIToolStep: Sendable {
+    public var requestMetadata: AIRequestMetadata? = nil
     public var index: Int
     public var providerID: String?
     public var modelID: String?
@@ -140,6 +141,7 @@ public struct AIToolCall: Equatable, Hashable, Sendable {
     public var rawInputText: String? = nil
     public var providerExecuted: Bool
     public var dynamic: Bool
+    public var toolMetadata: [String: JSONValue]? = nil
     public var title: String?
     public var providerMetadata: [String: JSONValue]
     public var rawValue: JSONValue?
@@ -388,16 +390,27 @@ public struct AIResponseMetadata: Equatable, Hashable, Sendable {
 }
 
 public struct AIRequestMetadata: Equatable, Hashable, Sendable {
+    /// Actual endpoint in provider results; core language APIs expose only its HTTP origin.
+    public var url: String?
     public var body: JSONValue?
     public var headers: [String: String]
-
+    /// Preserves the exact public selector released in core 1.2.0.
     public init(body: JSONValue? = nil, headers: [String: String] = [:]) {
+        self.init(body: body, headers: headers, url: nil)
+    }
+
+    public init(body: JSONValue? = nil, headers: [String: String] = [:], url: String?) {
+        self.url = url
         self.body = body
         self.headers = headers
     }
 }
 
 public enum LanguageStreamPart: Equatable, Sendable {
+    /// A keepalive that carries no generated content.
+    case ping
+    /// A delivered user steering message, before the receiving model step.
+    case steeringMessage(id: String, message: AIMessage, stepNumber: Int)
     case streamStart(warnings: [AIWarning])
     case textStart(id: String, providerMetadata: [String: JSONValue] = [:])
     /// Legacy text delta without an explicit lifecycle or part identifier.
@@ -430,6 +443,8 @@ public enum LanguageStreamPart: Equatable, Sendable {
     case custom(JSONValue, providerMetadata: [String: JSONValue] = [:])
     case source(AISource)
     case metadata([String: JSONValue])
+    /// Provider request metadata, sanitized by high-level language APIs.
+    case requestMetadata(AIRequestMetadata)
     case responseMetadata(AIResponseMetadata)
     case raw(JSONValue)
     case error(message: String, rawValue: JSONValue? = nil)

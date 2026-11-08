@@ -82,3 +82,31 @@ import SwiftAIProvider
     #expect(parts.contains(.responseMetadata(response)))
     #expect(parts.contains(.error(message: "provider error", rawValue: .object(["code": .string("bad")]))))
 }
+
+
+@Suite("Weekly20261108 model contract additions")
+struct Weekly20261108ModelContractTests {
+    @Test func realtimeUsageRetainsGrossCachedAndMissingCounters() {
+        let raw: JSONValue = ["response": ["usage": ["input_tokens": 20, "output_tokens": 5, "input_token_details": ["cached_tokens": 9, "text_tokens": 12, "audio_tokens": 8, "cached_tokens_details": ["text_tokens": 6, "audio_tokens": 3]], "output_token_details": ["text_tokens": 5]]]]
+        let event = AIRealtimeServerEvent.responseDone(responseID: "r", status: "completed", raw: raw)
+        #expect(event.usage?.inputTokens == 20)
+        #expect(event.usage?.cachedInputTokens == 9)
+        #expect(event.usage?.inputTextTokens == 12)
+        #expect(event.usage?.cachedInputTextTokens == 6)
+        #expect(event.usage?.outputAudioTokens == nil)
+        #expect(AIRealtimeServerEvent.responseDone(responseID: "r", status: "completed", raw: ["usage": [:]]).usage == nil)
+        #expect(AIRealtimeServerEvent.custom(rawType: "usage", raw: ["usage": ["inputTokens": 0, "cachedInputAudioTokens": 0]]).usage?.inputTokens == 0)
+        #expect(AIRealtimeServerEvent.inputTranscriptionCompleted(itemID: "i", transcript: "hi", raw: ["usage": ["type": "duration", "seconds": 2.5, "input_tokens": 99]]).usage == .init(seconds: 2.5))
+        guard case let .responseDone(id, status, unchanged) = event else { Issue.record("Case arity changed"); return }
+        #expect(id == "r" && status == "completed" && unchanged == raw)
+    }
+    @Test func additionalCapabilitySectionsRoundTripWithOmittedValues() throws {
+        let capabilities = AIModelCapabilities(video: .init(inputs: .init(text: .supported, image: .unsupported, firstFrame: .unknown, lastFrame: .conditional("model"), referenceImage: .unsupported, referenceVideo: .unsupported), generateAudio: .unknown, aspectRatio: .supported, resolution: .supported, duration: .supported, fps: .unsupported, seed: .unsupported), reranking: .init(documents: .init(text: .supported, object: .conditional("converted to text")), topN: .supported), decision: .init(questionTypes: .init(boolean: .supported, choice: .supported, score: .supported, box: .unsupported), inputs: .init(image: .unsupported), reasoning: .unknown, maxOutputTokens: .supported))
+        let encoded = try JSONEncoder().encode(capabilities)
+        #expect(try JSONDecoder().decode(AIModelCapabilities.self, from: encoded) == capabilities)
+        let json = try JSONDecoder().decode(JSONValue.self, from: encoded)
+        #expect(json["video"]?["maxVideosPerCall"] == nil)
+        #expect(json["reranking"]?["documents"]?["text"] == true)
+        #expect(json["decision"]?["questionTypes"]?["box"] == false)
+    }
+}

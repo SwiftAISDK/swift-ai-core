@@ -120,6 +120,8 @@ func streamTextWithTelemetryParts(
                             receivedPart = true
                             let outgoingPart: LanguageStreamPart
                             switch part {
+                            case let .requestMetadata(metadata):
+                                outgoingPart = .requestMetadata(sanitizedRequestMetadata(metadata))
                             case let .finish(reason, usage) where reason == nil && attemptStep.hasUnterminatedInBandError:
                                 outgoingPart = .finish(reason: "error", usage: usage)
                             case let .finishMetadata(reason, usage, metadata) where reason == nil && attemptStep.hasUnterminatedInBandError:
@@ -157,7 +159,7 @@ func streamTextWithTelemetryParts(
                             }
 
                             attemptStep.record(outgoingPart)
-                            if canRetryAfterStreamStart,
+                            if canRetryAfterStreamStart, outgoingPart != .ping,
                                isBufferingAttemptParts || isStreamRetryBufferedPart(outgoingPart) {
                                 isBufferingAttemptParts = true
                                 bufferedAttemptParts.append(outgoingPart)
@@ -238,7 +240,7 @@ func streamTextWithTelemetryParts(
                             providerMetadata: step.providerMetadata,
                             rawValue: .object([:]),
                             warnings: step.warnings,
-                            requestMetadata: input.map { AIRequestMetadata(body: $0) } ?? AIRequestMetadata(),
+                            requestMetadata: step.requestMetadata ?? input.map { AIRequestMetadata(body: $0) } ?? AIRequestMetadata(),
                             responseMetadata: step.responseMetadata
                         )
                         if await terminalState.claimTerminalEvent() {
@@ -256,7 +258,8 @@ func streamTextWithTelemetryParts(
                                 warnings: result.warnings,
                                 providerMetadata: result.providerMetadata,
                                 responseMetadata: result.responseMetadata,
-                                useResponseModelID: true
+                                useResponseModelID: true,
+                                requestURL: result.requestMetadata.url
                             ))
                             if logWarnings {
                                 await AIWarningLogging.logWarnings(result.warnings, providerID: providerID, modelID: modelID)

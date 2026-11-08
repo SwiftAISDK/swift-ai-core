@@ -94,6 +94,7 @@ func withTelemetry<Output: Sendable>(
             useResponseModelID: wrapLanguageModelCall
         )
         endEvent.providerUsage = providerUsage?(result)
+        endEvent.requestURL = requestOrigin((result as? any AILanguageRequestMetadataProviding)?.telemetryRequestMetadata.url)
         await dispatcher.record(endEvent)
         let resultWarnings = warnings(result)
         if logEmptyWarnings || !resultWarnings.isEmpty {

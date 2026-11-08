@@ -64,6 +64,7 @@ extension AI {
                 var sources: [AISource] = []
                 var providerMetadata: [String: JSONValue] = [:]
                 var responseMetadata = AIResponseMetadata()
+                var requestMetadata: AIRequestMetadata?
                 var rawValues: [JSONValue] = []
                 var lastPartialObject: JSONValue?
                 var pendingTextDelta = ""
@@ -117,6 +118,11 @@ extension AI {
                         case let .metadata(metadata):
                             flushPendingTextDelta()
                             continuation.yield(.metadata(metadata))
+                        case let .requestMetadata(metadata):
+                            requestMetadata = sanitizedRequestMetadata(metadata)
+                            continuation.yield(.raw(.requestMetadata(sanitizedRequestMetadata(metadata))))
+                        case .ping:
+                            continuation.yield(.raw(.ping))
                         case let .responseMetadata(metadata):
                             flushPendingTextDelta()
                             responseMetadata = metadata
@@ -176,7 +182,7 @@ extension AI {
                         providerMetadata: providerMetadata,
                         rawValue: rawValues.isEmpty ? parsed.rawObject : .array(rawValues),
                         warnings: warnings,
-                        requestMetadata: AIRequestMetadata(body: languageRequestMetadataBody(streamRequest), headers: streamRequest.headers),
+                        requestMetadata: requestMetadata ?? AIRequestMetadata(body: languageRequestMetadataBody(streamRequest), headers: streamRequest.headers),
                         responseMetadata: responseMetadata
                     )
                     let objectResult = ObjectGenerationResult(

@@ -347,7 +347,7 @@ private func isSemanticLanguageOutput(_ part: LanguageStreamPart) -> Bool {
         return !argumentsDelta.isEmpty
     case .file, .reasoningFile, .toolCall:
         return true
-    case .streamStart,
+    case .ping, .requestMetadata, .steeringMessage, .streamStart,
          .textStart,
          .textEnd,
          .textEndWithCitations,

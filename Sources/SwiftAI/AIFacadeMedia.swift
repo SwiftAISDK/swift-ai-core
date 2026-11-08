@@ -408,7 +408,7 @@ extension AI {
             if result.requestMetadata == AIRequestMetadata() {
                 result.requestMetadata = videoGenerationRequestMetadata(normalized.request)
             }
-            guard !result.urls.isEmpty || !result.base64Videos.isEmpty else {
+            guard !result.urls.isEmpty || !result.base64Videos.isEmpty || !result.uploadedVideos.isEmpty else {
                 throw AINoOutputError(kind: .video, responses: [result.responseMetadata])
             }
             return result

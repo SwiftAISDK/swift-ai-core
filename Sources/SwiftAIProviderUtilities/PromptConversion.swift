@@ -55,7 +55,65 @@ package func downloadUnsupportedPromptAssets(
         }
     }
 
+    var downloadedToolAssets: [String: AIHTTPResponse] = [:]
+    for messageIndex in output.messages.indices {
+        for partIndex in output.messages[messageIndex].content.indices {
+            guard case var .toolResult(result) = output.messages[messageIndex].content[partIndex],
+                  var modelOutput = (result.modelOutput ?? result.result).objectValue,
+                  modelOutput["type"]?.stringValue == "content",
+                  var items = modelOutput["value"]?.arrayValue else { continue }
+            for index in items.indices {
+                guard var item = items[index].objectValue else { continue }
+                let type = item["type"]?.stringValue
+                let urlString: String
+                var mediaType: String
+                switch type {
+                case "file-url", "image-url":
+                    guard let url = item["url"]?.stringValue else { continue }
+                    urlString = url
+                    mediaType = type == "image-url" ? "image" : item["mediaType"]?.stringValue ?? promptURLMediaType(url)
+                case "file":
+                    guard item["data"]?["type"]?.stringValue == "url", let url = item["data"]?["url"]?.stringValue else { continue }
+                    urlString = url
+                    mediaType = item["mediaType"]?.stringValue ?? "application/octet-stream"
+                default: continue
+                }
+                item["type"] = "file"
+                item.removeValue(forKey: "url")
+                if !urlString.lowercased().hasPrefix("data:"), isURLSupported(mediaType: mediaType, url: urlString, supportedURLs: supportedURLs) {
+                    item["data"] = ["type": "url", "url": .string(urlString)]
+                } else {
+                    try output.abortSignal?.throwIfAborted()
+                    let response: AIHTTPResponse
+                    if let cached = downloadedToolAssets[urlString] { response = cached }
+                    else {
+                        do { response = try await downloadURL(urlString, transport: transport, abortSignal: output.abortSignal) }
+                        catch {
+                            if error is AIAbortError || error is CancellationError || error is AIDownloadError { throw error }
+                            throw AIDownloadError(url: urlString, message: String(describing: error))
+                        }
+                        guard (200..<300).contains(response.statusCode) else { throw AIDownloadError(url: urlString, message: "Download failed with HTTP status \(response.statusCode).") }
+                        downloadedToolAssets[urlString] = response
+                    }
+                    let downloadedType = response.headerValue("content-type")?.split(separator: ";", maxSplits: 1).first.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                    if !isFullMediaType(mediaType), let downloadedType { mediaType = downloadedType }
+                    if let imageType = detectMediaType(data: response.body, topLevelType: "image") { mediaType = imageType }
+                    item["data"] = ["type": "data", "data": .string(response.body.base64EncodedString())]
+                }
+                item["mediaType"] = .string(mediaType)
+                items[index] = .object(item)
+            }
+            modelOutput["value"] = .array(items)
+            result.modelOutput = .object(modelOutput)
+            output.messages[messageIndex].content[partIndex] = .toolResult(result)
+        }
+    }
     return output
+}
+
+private func promptURLMediaType(_ url: String) -> String {
+    let types = ["jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp", "svg": "image/svg+xml", "avif": "image/avif", "heic": "image/heic", "bmp": "image/bmp", "tiff": "image/tiff", "tif": "image/tiff", "pdf": "application/pdf", "mp4": "video/mp4", "webm": "video/webm", "mp3": "audio/mpeg", "wav": "audio/wav", "ogg": "audio/ogg"]
+    return URL(string: url).flatMap { types[$0.pathExtension.lowercased()] } ?? "application/octet-stream"
 }
 
 func convertToLanguageModelPrompt(_ prompt: StandardizedPrompt) throws -> [AIMessage] {

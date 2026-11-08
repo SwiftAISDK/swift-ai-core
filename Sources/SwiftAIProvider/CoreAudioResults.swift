@@ -1,7 +1,13 @@
 import Foundation
 
 
+public enum TranscriptionTimestampGranularity: String, CaseIterable, Codable, Sendable {
+    case word
+    case segment
+}
+
 public struct AudioTranscriptionRequest: Sendable {
+    public var timestampGranularities: [TranscriptionTimestampGranularity]?
     public var audio: Data
     public var fileName: String
     public var mimeType: String
@@ -11,7 +17,7 @@ public struct AudioTranscriptionRequest: Sendable {
     public var extraBody: [String: JSONValue]
     public var headers: [String: String]
     public var abortSignal: AIAbortSignal?
-
+    /// Preserves the exact public selector released in core 1.2.0.
     public init(
         audio: Data,
         fileName: String = "audio.wav",
@@ -23,6 +29,22 @@ public struct AudioTranscriptionRequest: Sendable {
         headers: [String: String] = [:],
         abortSignal: AIAbortSignal? = nil
     ) {
+        self.init(audio: audio, fileName: fileName, mimeType: mimeType, language: language, prompt: prompt, providerOptions: providerOptions, extraBody: extraBody, headers: headers, abortSignal: abortSignal, timestampGranularities: nil)
+    }
+
+    public init(
+        audio: Data,
+        fileName: String = "audio.wav",
+        mimeType: String = "audio/wav",
+        language: String? = nil,
+        prompt: String? = nil,
+        providerOptions: [String: JSONValue] = [:],
+        extraBody: [String: JSONValue] = [:],
+        headers: [String: String] = [:],
+        abortSignal: AIAbortSignal? = nil,
+        timestampGranularities: [TranscriptionTimestampGranularity]?
+    ) {
+        self.timestampGranularities = timestampGranularities
         self.audio = audio
         self.fileName = fileName
         self.mimeType = mimeType
@@ -36,6 +58,8 @@ public struct AudioTranscriptionRequest: Sendable {
 }
 
 public struct TranscriptionResult: Sendable {
+    /// Word timings, independent of the provider's existing segment representation.
+    public var words: [TranscriptionSegment]? = nil
     public var usage: [String: JSONValue]? = nil
     public var text: String
     public var rawValue: JSONValue
@@ -46,6 +70,21 @@ public struct TranscriptionResult: Sendable {
     public var providerMetadata: [String: JSONValue]
     public var requestMetadata: AIRequestMetadata
     public var responseMetadata: AIResponseMetadata
+    /// Preserves the exact public selectors released in core 1.2.0.
+    public init(
+        text: String,
+        rawValue: JSONValue,
+        segments: [TranscriptionSegment] = [],
+        language: String? = nil,
+        durationInSeconds: Double? = nil,
+        warnings: [AIWarning] = [],
+        providerMetadata: [String: JSONValue] = [:],
+        requestMetadata: AIRequestMetadata = AIRequestMetadata(),
+        responseMetadata: AIResponseMetadata = AIResponseMetadata(),
+        usage: [String: JSONValue]?
+    ) {
+        self.init(text: text, rawValue: rawValue, segments: segments, language: language, durationInSeconds: durationInSeconds, warnings: warnings, providerMetadata: providerMetadata, requestMetadata: requestMetadata, responseMetadata: responseMetadata, usage: usage, words: nil)
+    }
 
     public init(
         text: String,
@@ -58,6 +97,22 @@ public struct TranscriptionResult: Sendable {
         requestMetadata: AIRequestMetadata = AIRequestMetadata(),
         responseMetadata: AIResponseMetadata = AIResponseMetadata()
     ) {
+        self.init(text: text, rawValue: rawValue, segments: segments, language: language, durationInSeconds: durationInSeconds, warnings: warnings, providerMetadata: providerMetadata, requestMetadata: requestMetadata, responseMetadata: responseMetadata, words: nil)
+    }
+
+    public init(
+        text: String,
+        rawValue: JSONValue,
+        segments: [TranscriptionSegment] = [],
+        language: String? = nil,
+        durationInSeconds: Double? = nil,
+        warnings: [AIWarning] = [],
+        providerMetadata: [String: JSONValue] = [:],
+        requestMetadata: AIRequestMetadata = AIRequestMetadata(),
+        responseMetadata: AIResponseMetadata = AIResponseMetadata(),
+        words: [TranscriptionSegment]?
+    ) {
+        self.words = words
         self.text = text
         self.rawValue = rawValue
         self.segments = segments
@@ -79,9 +134,10 @@ public struct TranscriptionResult: Sendable {
         providerMetadata: [String: JSONValue] = [:],
         requestMetadata: AIRequestMetadata = AIRequestMetadata(),
         responseMetadata: AIResponseMetadata = AIResponseMetadata(),
-        usage: [String: JSONValue]?
+        usage: [String: JSONValue]?,
+        words: [TranscriptionSegment]?
     ) {
-        self.init(text: text, rawValue: rawValue, segments: segments, language: language, durationInSeconds: durationInSeconds, warnings: warnings, providerMetadata: providerMetadata, requestMetadata: requestMetadata, responseMetadata: responseMetadata)
+        self.init(text: text, rawValue: rawValue, segments: segments, language: language, durationInSeconds: durationInSeconds, warnings: warnings, providerMetadata: providerMetadata, requestMetadata: requestMetadata, responseMetadata: responseMetadata, words: words)
         self.usage = usage
     }
 }
@@ -394,5 +450,22 @@ public struct DubbingAudioResult: Sendable {
         self.audio = audio
         self.contentType = contentType
         self.responseMetadata = responseMetadata
+    }
+}
+/// Native provider URL transcription. The provider fetches the public HTTP(S) audio itself.
+public struct AudioURLTranscriptionRequest: Sendable {
+    public var audio: URL
+    public var language: String?
+    public var prompt: String?
+    public var timestampGranularities: [TranscriptionTimestampGranularity]?
+    public var providerOptions: [String: JSONValue]
+    public var extraBody: [String: JSONValue]
+    public var headers: [String: String]
+    public var abortSignal: AIAbortSignal?
+
+    public init(audio: URL, language: String? = nil, prompt: String? = nil, timestampGranularities: [TranscriptionTimestampGranularity]? = nil, providerOptions: [String: JSONValue] = [:], extraBody: [String: JSONValue] = [:], headers: [String: String] = [:], abortSignal: AIAbortSignal? = nil) {
+        self.audio = audio; self.language = language; self.prompt = prompt
+        self.timestampGranularities = timestampGranularities; self.providerOptions = providerOptions
+        self.extraBody = extraBody; self.headers = headers; self.abortSignal = abortSignal
     }
 }

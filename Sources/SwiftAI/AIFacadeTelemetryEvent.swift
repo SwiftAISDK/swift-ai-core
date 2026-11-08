@@ -23,14 +23,15 @@ func telemetryEvent(
     responseMetadata: AIResponseMetadata = AIResponseMetadata(),
     useResponseModelID: Bool = false,
     errorDescription: String? = nil,
-    runtimeContext: [String: JSONValue] = [:]
+    runtimeContext: [String: JSONValue] = [:],
+    requestURL: String? = nil
 ) -> Telemetry.Event {
     let includesInput = options?.includesInput ?? true
     let includesOutput = options?.includesOutput ?? true
     let attributedModelID = kind == .end && useResponseModelID
         ? responseMetadata.modelID ?? modelID
         : modelID
-    return Telemetry.Event(
+    var event = Telemetry.Event(
         kind: kind,
         callID: callID,
         operationID: operationID,
@@ -53,4 +54,6 @@ func telemetryEvent(
         includesInput: includesInput,
         includesOutput: includesOutput
     )
+    event.requestURL = requestOrigin(requestURL)
+    return event
 }

@@ -35,7 +35,7 @@ public enum AIModelFeatureSupport: Equatable, Sendable, Codable {
 }
 
 public enum AIModelCapabilitySection: String, Codable, CodingKeyRepresentable, Hashable, Sendable {
-    case language, embedding, image, transcription, speechTranslation, speech, realtime
+    case language, embedding, image, video, reranking, decision, transcription, speechTranslation, speech, realtime
 }
 
 public struct AIModelCapabilities: Equatable, Sendable, Codable {
@@ -96,6 +96,54 @@ public struct AIModelCapabilities: Equatable, Sendable, Codable {
         public var maxImagesPerCall: Int?
         public init(sizes: Sizes, fileInput: AIModelFeatureSupport, maskInput: AIModelFeatureSupport, maxImagesPerCall: Int? = nil) { self.sizes = sizes; self.fileInput = fileInput; self.maskInput = maskInput; self.maxImagesPerCall = maxImagesPerCall }
     }
+    public struct Video: Equatable, Sendable, Codable {
+        public struct Inputs: Equatable, Sendable, Codable {
+            public var text: AIModelFeatureSupport
+            public var image: AIModelFeatureSupport
+            public var firstFrame: AIModelFeatureSupport
+            public var lastFrame: AIModelFeatureSupport
+            public var referenceImage: AIModelFeatureSupport
+            public var referenceVideo: AIModelFeatureSupport
+            public init(text: AIModelFeatureSupport, image: AIModelFeatureSupport, firstFrame: AIModelFeatureSupport, lastFrame: AIModelFeatureSupport, referenceImage: AIModelFeatureSupport, referenceVideo: AIModelFeatureSupport) { self.text = text; self.image = image; self.firstFrame = firstFrame; self.lastFrame = lastFrame; self.referenceImage = referenceImage; self.referenceVideo = referenceVideo }
+        }
+        public var inputs: Inputs
+        public var generateAudio: AIModelFeatureSupport
+        public var aspectRatio: AIModelFeatureSupport
+        public var resolution: AIModelFeatureSupport
+        public var duration: AIModelFeatureSupport
+        public var fps: AIModelFeatureSupport
+        public var seed: AIModelFeatureSupport
+        public var maxVideosPerCall: Int?
+        public init(inputs: Inputs, generateAudio: AIModelFeatureSupport, aspectRatio: AIModelFeatureSupport, resolution: AIModelFeatureSupport, duration: AIModelFeatureSupport, fps: AIModelFeatureSupport, seed: AIModelFeatureSupport, maxVideosPerCall: Int? = nil) { self.inputs = inputs; self.generateAudio = generateAudio; self.aspectRatio = aspectRatio; self.resolution = resolution; self.duration = duration; self.fps = fps; self.seed = seed; self.maxVideosPerCall = maxVideosPerCall }
+    }
+    public struct Reranking: Equatable, Sendable, Codable {
+        public struct Documents: Equatable, Sendable, Codable {
+            public var text: AIModelFeatureSupport
+            public var object: AIModelFeatureSupport
+            public init(text: AIModelFeatureSupport, object: AIModelFeatureSupport) { self.text = text; self.object = object }
+        }
+        public var documents: Documents
+        public var topN: AIModelFeatureSupport
+        public init(documents: Documents, topN: AIModelFeatureSupport) { self.documents = documents; self.topN = topN }
+    }
+    public struct Decision: Equatable, Sendable, Codable {
+        public struct QuestionTypes: Equatable, Sendable, Codable {
+            public var boolean: AIModelFeatureSupport
+            public var choice: AIModelFeatureSupport
+            public var score: AIModelFeatureSupport
+            public var box: AIModelFeatureSupport
+            public init(boolean: AIModelFeatureSupport, choice: AIModelFeatureSupport, score: AIModelFeatureSupport, box: AIModelFeatureSupport) { self.boolean = boolean; self.choice = choice; self.score = score; self.box = box }
+        }
+        public struct Inputs: Equatable, Sendable, Codable {
+            public var image: AIModelFeatureSupport
+            public init(image: AIModelFeatureSupport) { self.image = image }
+        }
+        public var questionTypes: QuestionTypes
+        public var inputs: Inputs
+        public var reasoning: AIModelFeatureSupport
+        public var maxOutputTokens: AIModelFeatureSupport
+        public init(questionTypes: QuestionTypes, inputs: Inputs, reasoning: AIModelFeatureSupport, maxOutputTokens: AIModelFeatureSupport) { self.questionTypes = questionTypes; self.inputs = inputs; self.reasoning = reasoning; self.maxOutputTokens = maxOutputTokens }
+    }
     public struct Transcription: Equatable, Sendable, Codable {
         public var transcription: AIModelFeatureSupport
         public var streaming: AIModelFeatureSupport
@@ -118,7 +166,7 @@ public struct AIModelCapabilities: Equatable, Sendable, Codable {
     public struct Realtime: Equatable, Sendable, Codable {
         public enum Conversation: String, Codable, Sendable { case continuous; case turnBased = "turn-based" }
         public enum Transport: String, Codable, Sendable { case websocket, webrtc }
-        public enum Connection: String, Codable, Sendable { case clientSecretWebSocket = "client-secret-websocket"; case serverWebSocket = "server-websocket"; case webrtc }
+        public enum Connection: String, Codable, Sendable { case provider; case clientSecretWebSocket = "client-secret-websocket"; case serverWebSocket = "server-websocket"; case webrtc }
         public var conversation: Conversation
         public var transports: [Transport]
         public var connections: [Connection]
@@ -126,12 +174,20 @@ public struct AIModelCapabilities: Equatable, Sendable, Codable {
     }
     public var language: Language?
     public var embedding: Embedding?
+    public var video: Video?
+    public var reranking: Reranking?
+    public var decision: Decision?
     public var image: Image?
     public var transcription: Transcription?
     public var speechTranslation: SpeechTranslation?
     public var speech: Speech?
     public var realtime: Realtime?
-    public init(language: Language? = nil, embedding: Embedding? = nil, image: Image? = nil, transcription: Transcription? = nil, speechTranslation: SpeechTranslation? = nil, speech: Speech? = nil, realtime: Realtime? = nil) { self.language = language; self.embedding = embedding; self.image = image; self.transcription = transcription; self.speechTranslation = speechTranslation; self.speech = speech; self.realtime = realtime }
+    /// Preserves the exact public selector released in core 1.2.0.
+    public init(language: Language? = nil, embedding: Embedding? = nil, image: Image? = nil, transcription: Transcription? = nil, speechTranslation: SpeechTranslation? = nil, speech: Speech? = nil, realtime: Realtime? = nil) {
+        self.init(language: language, embedding: embedding, image: image, transcription: transcription, speechTranslation: speechTranslation, speech: speech, realtime: realtime, video: nil, reranking: nil, decision: nil)
+    }
+
+    public init(language: Language? = nil, embedding: Embedding? = nil, image: Image? = nil, transcription: Transcription? = nil, speechTranslation: SpeechTranslation? = nil, speech: Speech? = nil, realtime: Realtime? = nil, video: Video? = nil, reranking: Reranking? = nil, decision: Decision? = nil) { self.video = video; self.reranking = reranking; self.decision = decision; self.language = language; self.embedding = embedding; self.image = image; self.transcription = transcription; self.speechTranslation = speechTranslation; self.speech = speech; self.realtime = realtime }
 }
 
 public struct AIProviderOptionDefinition: Equatable, Sendable, Codable {

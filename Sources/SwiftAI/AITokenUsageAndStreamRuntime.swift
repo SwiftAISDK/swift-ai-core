@@ -47,6 +47,7 @@ func isCancellationTelemetryError(_ error: Error) -> Bool {
 }
 
 struct LanguageStreamToolStep {
+    var requestMetadata: AIRequestMetadata?
     var text = ""
     var reasoning = ""
     var finishReason: String?
@@ -66,6 +67,8 @@ struct LanguageStreamToolStep {
 
     mutating func record(_ part: LanguageStreamPart) {
         switch part {
+        case let .requestMetadata(metadata):
+            requestMetadata = sanitizedRequestMetadata(metadata)
         case let .streamStart(partWarnings):
             warnings.append(contentsOf: partWarnings)
         case let .textDelta(delta):
@@ -232,7 +235,7 @@ struct LanguageStreamToolStep {
                 generatedApprovalResponses: approvalResponses,
                 generatedToolResults: toolResults
             )
-        return AIToolStep(
+        var result = AIToolStep(
             index: index,
             content: content,
             text: text,
@@ -249,6 +252,8 @@ struct LanguageStreamToolStep {
             providerMetadata: providerMetadata,
             responseMetadata: responseMetadata
         )
+        result.requestMetadata = requestMetadata
+        return result
     }
 }
 
@@ -359,7 +364,9 @@ private func synthesizedOrderedContent(
 ) -> [AIResultContentPart] {
     var content = orderedContent.filter { part in
         switch part {
-        case let .text(text, _), let .reasoning(text, _):
+        case let .text(text, metadata):
+            return !text.isEmpty || !metadata.isEmpty
+        case let .reasoning(text, _):
             return !text.isEmpty
         default:
             return true

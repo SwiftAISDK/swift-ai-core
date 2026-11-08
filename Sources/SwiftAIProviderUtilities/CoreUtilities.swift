@@ -100,13 +100,21 @@ public struct AIToolNameMapping: Sendable {
     private var customToolNameToProviderToolName: [String: String]
     private var providerToolNameToCustomToolName: [String: String]
 
+    /// Retains all forward aliases. Preferred names are applied last to reverse mapping.
+    /// Without explicit preference, sorted names make duplicate aliases deterministic.
+    /// Preserves the exact public selector released in core 1.2.0.
     public init(customToolNameToProviderToolName: [String: String] = [:]) {
+        self.init(customToolNameToProviderToolName: customToolNameToProviderToolName, preferredCustomToolNames: [])
+    }
+
+    public init(customToolNameToProviderToolName: [String: String] = [:], preferredCustomToolNames: [String]) {
         self.customToolNameToProviderToolName = customToolNameToProviderToolName
-        self.providerToolNameToCustomToolName = Dictionary(
-            uniqueKeysWithValues: customToolNameToProviderToolName.map { customName, providerName in
-                (providerName, customName)
-            }
-        )
+        var reversed: [String: String] = [:]
+        for name in customToolNameToProviderToolName.keys.sorted() + preferredCustomToolNames {
+            guard let provider = customToolNameToProviderToolName[name] else { continue }
+            reversed[provider] = name
+        }
+        self.providerToolNameToCustomToolName = reversed
     }
 
     public func toProviderToolName(_ customToolName: String) -> String {
@@ -616,6 +624,7 @@ public func smoothStream(
 
                 for try await part in canonicalLanguageStream(stream, providerID: "smooth-stream") {
                     try Task.checkCancellation()
+                    if part == .ping { continuation.yield(part); continue }
                     guard let smoothable = SmoothableStreamPart(part) else {
                         flushBuffer()
                         continuation.yield(part)

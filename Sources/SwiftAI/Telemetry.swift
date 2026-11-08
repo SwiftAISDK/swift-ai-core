@@ -24,6 +24,8 @@ public enum Telemetry {
 
         /// Version of the reviewed upstream ai contract that emitted this event.
         public var aiVersion: String? = nil
+        /// Sanitized provider HTTP origin, independent of input/output recording.
+        public var requestURL: String? = nil
         public var kind: Kind
         public var callID: String
         public var operationID: String

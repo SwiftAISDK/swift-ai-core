@@ -1,5 +1,5 @@
 <!-- Generated distribution; edit the canonical repository. -->
-# swift-ai-core 1.2.0
+# swift-ai-core 1.3.0
 
 Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions are in PROVENANCE.json and Porting/.
 
@@ -8,7 +8,7 @@ Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions
 Add this package to your SwiftPM dependencies:
 
 ```swift
-.package(url: "https://github.com/SwiftAISDK/swift-ai-core.git", from: "1.2.0")
+.package(url: "https://github.com/SwiftAISDK/swift-ai-core.git", from: "1.3.0")
 ```
 
 Products: `SwiftAI`, `SwiftAIProvider`, `SwiftAIProviderUtilities`, `SwiftAITransport`.
@@ -57,6 +57,30 @@ security, demand-driven bodies and cancellation remain enforced by the transport
 Cross-package helpers are public; orchestration-only helpers use package access.
 Public helper signatures are part of the Swift package compatibility contract.
 Application code should normally use the facade and typed provider factories.
+
+Core 1.2 constructor and `AIRealtimeSession.connectServer` selectors remain
+available as exact function references. Forwarding overloads retain their original
+defaults while the new timing, uploaded-video, request URL, tool metadata,
+capability and realtime-intent APIs remain available. Existing initializers do
+not invent values for new optional fields; server sessions default to conversation.
+
+`AISteering.queue` starts queued tasks one at a time after the current task
+finishes; immediate `steer` messages take precedence. Delivered messages are
+available as stream parts with delivery IDs and step numbers. URL transcription
+uses `AudioURLTranscriptionRequest`, with a native provider hook and protected
+download fallback. Shared timestamp requests and `TranscriptionResult.words`
+expose provider-supported timings. Video results can contain `uploadedVideos`
+descriptors for caller-storage delivery without a downloadable URL.
+
+High-level text/object request URLs and `Telemetry.Event.requestURL` contain only
+HTTP(S) origins. Content capture settings filter SDK-owned raw provider payloads.
+Realtime event `usage` exposes provider snapshots without changing existing event
+case arity. Consumers with exhaustive switches over `LanguageStreamPart` must
+handle the new ping, request-metadata and delivered-steering cases.
+Exhaustive switches must also handle `.provider` on `AIRealtimeConnectionKind`
+and `AIModelCapabilities.Realtime.Connection`, plus `.video`, `.reranking` and
+`.decision` on `AIModelCapabilitySection`. These additive enum cases follow the
+project's minor-release convention; existing exhaustive switches need migration.
 
 Run `swift test --package-path Packages/swift-ai-core --no-parallel` from the
 canonical repository. `node Scripts/verify-core-isolation.mjs` copies this package

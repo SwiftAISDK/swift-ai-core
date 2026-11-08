@@ -40,6 +40,7 @@ extension AI {
             }
         ) {
             var result = try await model.generate(request)
+            result.requestMetadata = sanitizedRequestMetadata(result.requestMetadata)
             result = try await materializeGeneratedFiles(
                 in: result,
                 abortSignal: request.abortSignal
@@ -288,7 +289,8 @@ extension AI {
                     providerMetadata: result.providerMetadata,
                     responseMetadata: result.responseMetadata.includingBody(includeResponseBody)
                 )
-                finalStep.experimentalSteeringMessages = deliveredSteeringMessages
+                finalStep.requestMetadata = result.requestMetadata
+                finalStep.experimentalSteeringMessages = deliveredSteeringMessages.map(\.message)
                 let finalText = result.text
                 result.toolResults = allToolResults
                 result.toolApprovalRequests = allApprovalRequests
@@ -301,7 +303,9 @@ extension AI {
                 result.responseMessages = finalResponseMessages
                 result.steps = steps + [finalStep]
                 await toolTelemetry.recordStepEnd(finalStep)
-                let canContinueWithSteering = experimentalSteering?.hasPendingMessages == true
+                let isTruncated = result.finishReason == "length" || result.finishReason == "content-filter"
+                let steeringWaiting = experimentalSteering?.hasPendingMessages == true || (!isTruncated && experimentalSteering?.promoteQueuedMessage() == true)
+                let canContinueWithSteering = steeringWaiting
                     && unresolvedCalls.isEmpty && executableCalls.isEmpty
                     && result.finishReason != "interrupted" && result.finishReason != "error"
                 let stopped = canContinueWithSteering ? try await isStopConditionMet(stopWhen, steps: result.steps) : false
@@ -318,7 +322,7 @@ extension AI {
                     finishReason: result.finishReason,
                     waitingForToolResults: !unresolvedCalls.isEmpty || !executableCalls.isEmpty,
                     stopped: stopped,
-                    reachedStepLimit: experimentalSteering?.hasPendingMessages == true && index == maxSteps - 1
+                    reachedStepLimit: experimentalSteering?.hasUndeliveredMessages == true && index == maxSteps - 1
                 )
                 return result
             }
@@ -363,7 +367,8 @@ extension AI {
                 providerMetadata: result.providerMetadata,
                 responseMetadata: result.responseMetadata.includingBody(includeResponseBody)
             )
-            step.experimentalSteeringMessages = deliveredSteeringMessages
+            step.requestMetadata = result.requestMetadata
+            step.experimentalSteeringMessages = deliveredSteeringMessages.map(\.message)
             steps.append(step)
             await toolTelemetry.recordStepEnd(step)
 

@@ -433,6 +433,9 @@ extension AI {
                         )
                         try stepDeadline.throwIfTimedOut()
                         let deliveredSteeringMessages = experimentalSteering?.resolveTakenMessages(stepNumber: index, sentMessages: stepRequest.messages) ?? []
+                        for delivered in deliveredSteeringMessages {
+                            continuation.yield(.steeringMessage(id: delivered.id, message: delivered.message, stepNumber: index))
+                        }
                         let previousSteps = steps
                         let step = try await forwardLanguageStream(
                             streamTextParts(
@@ -499,12 +502,14 @@ extension AI {
                             if completedStep.responseMetadata.modelID == nil {
                                 completedStep.responseMetadata.modelID = stepModel.modelID
                             }
-                            completedStep.experimentalSteeringMessages = deliveredSteeringMessages
+                            completedStep.experimentalSteeringMessages = deliveredSteeringMessages.map(\.message)
                             steps.append(completedStep)
                             stepResults.append(completedStep)
                             await toolTelemetry.recordStepEnd(completedStep)
                             try stepDeadline.throwIfTimedOut()
-                            let canContinueWithSteering = experimentalSteering?.hasPendingMessages == true
+                            let isTruncated = step.finishReason == "length" || step.finishReason == "content-filter"
+                            let steeringWaiting = experimentalSteering?.hasPendingMessages == true || (!isTruncated && experimentalSteering?.promoteQueuedMessage() == true)
+                            let canContinueWithSteering = steeringWaiting
                                 && step.finishReason != "interrupted" && step.finishReason != "error"
                                 && executableCalls.isEmpty && unresolvedCalls.isEmpty
                             let stopped = canContinueWithSteering ? try await isStopConditionMet(stopWhen, steps: steps) : false
@@ -538,11 +543,13 @@ extension AI {
                             if completedStep.responseMetadata.modelID == nil {
                                 completedStep.responseMetadata.modelID = stepModel.modelID
                             }
-                            completedStep.experimentalSteeringMessages = deliveredSteeringMessages
+                            completedStep.experimentalSteeringMessages = deliveredSteeringMessages.map(\.message)
                             steps.append(completedStep)
                             stepResults.append(completedStep)
                             await toolTelemetry.recordStepEnd(completedStep)
                             try stepDeadline.throwIfTimedOut()
+                            let isTruncated = step.finishReason == "length" || step.finishReason == "content-filter"
+                            if pendingProviderExecutedToolCallIDs.isEmpty && unresolvedCalls.isEmpty && experimentalSteering?.hasPendingMessages != true && !isTruncated { _ = experimentalSteering?.promoteQueuedMessage() }
                             let canContinue = !pendingProviderExecutedToolCallIDs.isEmpty || experimentalSteering?.hasPendingMessages == true
                             if canContinue, try await isStopConditionMet(stopWhen, steps: steps) {
                                 steeringEndReason = .stopCondition
@@ -607,7 +614,7 @@ extension AI {
                         if completedStep.responseMetadata.modelID == nil {
                             completedStep.responseMetadata.modelID = stepModel.modelID
                         }
-                        completedStep.experimentalSteeringMessages = deliveredSteeringMessages
+                        completedStep.experimentalSteeringMessages = deliveredSteeringMessages.map(\.message)
                         steps.append(completedStep)
                         stepResults.append(completedStep)
                         await toolTelemetry.recordStepEnd(completedStep)

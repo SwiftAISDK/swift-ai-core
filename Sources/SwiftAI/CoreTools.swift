@@ -307,6 +307,8 @@ public enum AIToolCallerDefinition: Sendable {
 
 public typealias AIToolCallerRouting = [String: [String]]
 public struct AITool: Sendable {
+    public var title: String? = nil
+    public var metadata: [String: JSONValue]? = nil
     public var name: String
     public var description: String?
     public var parameters: JSONValue
@@ -330,6 +332,7 @@ public struct AITool: Sendable {
     public var executeWithContext: @Sendable (JSONValue, AIToolExecutionContext) async throws -> JSONValue
     public var toModelOutput: (@Sendable (AIToolModelOutputContext) async throws -> JSONValue)?
 
+    /// Preserves the exact public selector released in core 1.2.0.
     public init(
         name: String,
         description: String? = nil,
@@ -351,6 +354,34 @@ public struct AITool: Sendable {
         executeWithContext: (@Sendable (JSONValue, AIToolExecutionContext) async throws -> JSONValue)? = nil,
         execute: @escaping @Sendable (JSONValue) async throws -> JSONValue
     ) {
+        self.init(name: name, description: description, parameters: parameters, dynamic: dynamic, providerMetadata: providerMetadata, providerOptions: providerOptions, strict: strict, inputExamples: inputExamples, contextSchema: contextSchema, needsApproval: needsApproval, deferLoading: deferLoading, toolCaller: toolCaller, onInputStart: onInputStart, onInputDelta: onInputDelta, onInputAvailable: onInputAvailable, refineArguments: refineArguments, toModelOutput: toModelOutput, executeWithContext: executeWithContext, title: nil, metadata: nil, execute: execute)
+    }
+
+    public init(
+        name: String,
+        description: String? = nil,
+        parameters: JSONValue,
+        dynamic: Bool = false,
+        providerMetadata: [String: JSONValue] = [:],
+        providerOptions: [String: JSONValue] = [:],
+        strict: Bool? = nil,
+        inputExamples: [JSONValue] = [],
+        contextSchema: JSONValue? = nil,
+        needsApproval: AIToolNeedsApproval? = nil,
+        deferLoading: Bool = false,
+        toolCaller: AIToolCallerDefinition? = nil,
+        onInputStart: AIToolInputStartCallback? = nil,
+        onInputDelta: AIToolInputDeltaCallback? = nil,
+        onInputAvailable: AIToolInputAvailableCallback? = nil,
+        refineArguments: (@Sendable (JSONValue) async throws -> JSONValue)? = nil,
+        toModelOutput: (@Sendable (AIToolModelOutputContext) async throws -> JSONValue)? = nil,
+        executeWithContext: (@Sendable (JSONValue, AIToolExecutionContext) async throws -> JSONValue)? = nil,
+        title: String? = nil,
+        metadata: [String: JSONValue]? = nil,
+        execute: @escaping @Sendable (JSONValue) async throws -> JSONValue
+    ) {
+        self.title = title
+        self.metadata = metadata
         self.name = name
         self.description = description
         self.parameters = parameters

@@ -193,6 +193,8 @@ public enum AIRealtimeTransportKind: String, Equatable, Sendable {
 }
 
 public enum AIRealtimeConnectionKind: String, Equatable, Sendable {
+    /// Browser provider-owned media transport; descriptive only in the native WebSocket runner.
+    case provider
     case clientSecretWebSocket = "client-secret-websocket"
     case serverWebSocket = "server-websocket"
     case webRTC = "webrtc"
@@ -239,6 +241,32 @@ public enum AIRealtimeDelegationMode: String, Equatable, Sendable {
 public enum AIRealtimeTranscriptSpeaker: String, Equatable, Sendable {
     case user
     case assistant
+}
+
+/// Raw provider token counts; cached counts are subsets of the gross input counts.
+/// Session snapshots without a response association must not be summed as increments.
+public struct AIRealtimeUsage: Equatable, Sendable, Codable {
+    public var inputTokens: Int?
+    public var outputTokens: Int?
+    public var cachedInputTokens: Int?
+    public var inputTextTokens: Int?
+    public var inputAudioTokens: Int?
+    public var outputTextTokens: Int?
+    public var outputAudioTokens: Int?
+    public var cachedInputTextTokens: Int?
+    public var cachedInputAudioTokens: Int?
+    public var seconds: Double?
+    public init(inputTokens: Int? = nil, outputTokens: Int? = nil, cachedInputTokens: Int? = nil, inputTextTokens: Int? = nil, inputAudioTokens: Int? = nil, outputTextTokens: Int? = nil, outputAudioTokens: Int? = nil, cachedInputTextTokens: Int? = nil, cachedInputAudioTokens: Int? = nil, seconds: Double? = nil) {
+        self.inputTokens = inputTokens; self.outputTokens = outputTokens; self.cachedInputTokens = cachedInputTokens
+        self.inputTextTokens = inputTextTokens; self.inputAudioTokens = inputAudioTokens
+        self.outputTextTokens = outputTextTokens; self.outputAudioTokens = outputAudioTokens
+        self.cachedInputTextTokens = cachedInputTextTokens; self.cachedInputAudioTokens = cachedInputAudioTokens; self.seconds = seconds
+    }
+}
+
+public enum AIRealtimeSessionIntent: String, Codable, Sendable {
+    case conversation
+    case transcription
 }
 
 public struct AIRealtimeSessionUsage: Equatable, Sendable {
@@ -447,6 +475,72 @@ public enum AIRealtimeServerEvent: Equatable, Sendable {
     case custom(rawType: String, raw: JSONValue)
 }
 
+public extension AIRealtimeServerEvent {
+    /// Provider-reported usage for this event. Unassociated snapshots are not increments.
+    /// The original event and its associated-value shape remain unchanged.
+    var usage: AIRealtimeUsage? {
+        switch self {
+        case let .inputTranscriptionCompleted(_, _, raw): return realtimeUsageFromRaw(raw["usage"], transcription: true)
+        case let .responseDone(_, _, raw):
+            return realtimeUsageFromRaw(raw["usage"] ?? raw["response"]?["usage"])
+                ?? googleRealtimeUsage(raw["usageMetadata"])
+        case let .custom(rawType, raw):
+            return realtimeUsageFromRaw(raw["usage"])
+                ?? (rawType == "usageMetadata" ? googleRealtimeUsage(raw["usageMetadata"]) : nil)
+        case let .sessionClosed(_, usage, _, _), let .sessionUsage(usage, _, _): return .init(seconds: usage.seconds)
+        default: return nil
+        }
+    }
+}
+
+private func googleRealtimeUsage(_ raw: JSONValue?) -> AIRealtimeUsage? {
+    guard let raw, raw.objectValue != nil else { return nil }
+    func total(_ base: String, adding extra: String) -> Int? {
+        guard let count = raw[base]?.intValue else { return nil }
+        let (sum, overflow) = count.addingReportingOverflow(raw[extra]?.intValue ?? 0)
+        return overflow ? nil : sum
+    }
+    func modality(_ field: String, _ name: String) -> Int? {
+        var sum: Int?
+        for detail in raw[field]?.arrayValue ?? [] {
+            guard detail["modality"]?.stringValue?.uppercased() == name,
+                  let count = detail["tokenCount"]?.intValue else { continue }
+            let (next, overflow) = (sum ?? 0).addingReportingOverflow(count)
+            guard !overflow else { return nil }
+            sum = next
+        }
+        return sum
+    }
+    let result = AIRealtimeUsage(
+        inputTokens: total("promptTokenCount", adding: "toolUsePromptTokenCount"),
+        outputTokens: total("responseTokenCount", adding: "thoughtsTokenCount"),
+        cachedInputTokens: raw["cachedContentTokenCount"]?.intValue,
+        inputTextTokens: modality("promptTokensDetails", "TEXT"),
+        inputAudioTokens: modality("promptTokensDetails", "AUDIO"),
+        outputTextTokens: modality("responseTokensDetails", "TEXT"),
+        outputAudioTokens: modality("responseTokensDetails", "AUDIO")
+    )
+    return result == AIRealtimeUsage() ? nil : result
+}
+
+private func realtimeUsageFromRaw(_ raw: JSONValue?, transcription: Bool = false) -> AIRealtimeUsage? {
+    guard let raw, raw.objectValue != nil else { return nil }
+    if transcription && raw["type"]?.stringValue == "duration" { return raw["seconds"]?.doubleValue.map { .init(seconds: $0) } }
+    let normalized = AIRealtimeUsage(inputTokens: raw["inputTokens"]?.intValue, outputTokens: raw["outputTokens"]?.intValue, cachedInputTokens: raw["cachedInputTokens"]?.intValue, inputTextTokens: raw["inputTextTokens"]?.intValue, inputAudioTokens: raw["inputAudioTokens"]?.intValue, outputTextTokens: raw["outputTextTokens"]?.intValue, outputAudioTokens: raw["outputAudioTokens"]?.intValue, cachedInputTextTokens: raw["cachedInputTextTokens"]?.intValue, cachedInputAudioTokens: raw["cachedInputAudioTokens"]?.intValue, seconds: raw["seconds"]?.doubleValue)
+    if normalized != AIRealtimeUsage() { return normalized }
+    let input = raw["input_token_details"]
+    let output = raw["output_token_details"]
+    let cached = input?["cached_tokens_details"]
+    let result = AIRealtimeUsage(inputTokens: raw["input_tokens"]?.intValue, outputTokens: raw["output_tokens"]?.intValue,
+        cachedInputTokens: transcription ? nil : input?["cached_tokens"]?.intValue,
+        inputTextTokens: input?["text_tokens"]?.intValue, inputAudioTokens: input?["audio_tokens"]?.intValue,
+        outputTextTokens: transcription ? raw["output_tokens"]?.intValue : output?["text_tokens"]?.intValue,
+        outputAudioTokens: transcription ? nil : output?["audio_tokens"]?.intValue,
+        cachedInputTextTokens: transcription ? nil : cached?["text_tokens"]?.intValue,
+        cachedInputAudioTokens: transcription ? nil : cached?["audio_tokens"]?.intValue)
+    return result == AIRealtimeUsage() ? nil : result
+}
+
 /// Optional throwing validation hooks for models whose configuration cannot be
 /// represented safely by the released nonthrowing V4 requirements.
 public protocol AIRealtimeModelV4ValidationHooks: Sendable {
@@ -472,6 +566,11 @@ public protocol AIRealtimeModelV4: Sendable {
 
     func getResolvedServerWebSocketConfig() async throws
         -> AIRealtimeWebSocketConfiguration
+
+    func getServerWebSocketConfig(intent: AIRealtimeSessionIntent) throws -> AIRealtimeWebSocketConfiguration
+    func getResolvedServerWebSocketConfig(intent: AIRealtimeSessionIntent) async throws -> AIRealtimeWebSocketConfiguration
+    func serializeClientEvent(_ event: AIRealtimeClientEvent, intent: AIRealtimeSessionIntent) async throws -> AIRealtimeWireMessage?
+    func buildSessionConfig(_ config: AIRealtimeSessionConfiguration, intent: AIRealtimeSessionIntent) throws -> JSONValue
 
     func doCreateClientSecret(
         _ options: AIRealtimeClientSecretOptions
@@ -503,6 +602,26 @@ public extension AIRealtimeModelV4 {
     var specificationVersion: String { "v4" }
     var provider: String { providerID }
     var capabilities: AIRealtimeModelCapabilities? { nil }
+
+    func getServerWebSocketConfig(intent: AIRealtimeSessionIntent) throws -> AIRealtimeWebSocketConfiguration {
+        try validateRealtimeIntent(intent)
+        return try getServerWebSocketConfig()
+    }
+    func getResolvedServerWebSocketConfig(intent: AIRealtimeSessionIntent) async throws -> AIRealtimeWebSocketConfiguration {
+        if intent == .conversation { return try await getResolvedServerWebSocketConfig() }
+        return try getServerWebSocketConfig(intent: intent)
+    }
+    func serializeClientEvent(_ event: AIRealtimeClientEvent, intent: AIRealtimeSessionIntent) async throws -> AIRealtimeWireMessage? {
+        try validateRealtimeIntent(intent)
+        return try await serializeClientEvent(event)
+    }
+    func buildSessionConfig(_ config: AIRealtimeSessionConfiguration, intent: AIRealtimeSessionIntent) throws -> JSONValue {
+        try validateRealtimeIntent(intent)
+        return buildSessionConfig(config)
+    }
+    private func validateRealtimeIntent(_ intent: AIRealtimeSessionIntent) throws {
+        guard intent == .conversation else { throw AIError.invalidArgument(argument: "intent", message: "The realtime model does not support transcription intent.") }
+    }
 
     /// The asynchronous connection hook permits per-connection credentials while
     /// retaining the synchronous hook for existing static-credential models.
@@ -584,3 +703,7 @@ public typealias Experimental_RealtimeModelV4ClientSecretOptions =
     AIRealtimeClientSecretOptions
 public typealias Experimental_RealtimeModelV4ClientSecretResult =
     AIRealtimeClientSecretResult
+
+public typealias Experimental_RealtimeModelV4Usage = AIRealtimeUsage
+public typealias Experimental_RealtimeModelV4ServerConnection = AIRealtimeWebSocketConfiguration
+public typealias Experimental_RealtimeModelV4SessionIntent = AIRealtimeSessionIntent

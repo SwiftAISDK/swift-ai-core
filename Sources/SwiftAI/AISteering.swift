@@ -43,6 +43,8 @@ public final class AISteeringReceipt: @unchecked Sendable {
     }
 }
 
+struct AISteeringDeliveredMessage: Sendable { var id: String; var message: AIMessage }
+
 /// Adds user messages at model-step boundaries. One object belongs to one run.
 public final class AISteering: @unchecked Sendable {
     private struct Pending { var id: String; var message: AIMessage; var receipt: AISteeringReceipt }
@@ -50,6 +52,7 @@ public final class AISteering: @unchecked Sendable {
     private let lock = NSLock()
     private var state: State = .idle
     private var pending: [Pending] = []
+    private var queued: [Pending] = []
     private var taken: [Pending] = []
     private var receipts: [String: AISteeringReceipt] = [:]
     fileprivate init() {}
@@ -60,13 +63,20 @@ public final class AISteering: @unchecked Sendable {
     public func steer(content: [AIContentPart], providerMetadata: [String: JSONValue] = [:], id: String? = nil) -> AISteeringReceipt {
         enqueue(AIMessage(role: .user, content: content, providerMetadata: providerMetadata), id: id)
     }
-    private func enqueue(_ message: AIMessage, id: String?) -> AISteeringReceipt {
+    public func queue(_ text: String, id: String? = nil) -> AISteeringReceipt {
+        enqueue(.user(text), id: id, queued: true)
+    }
+    public func queue(content: [AIContentPart], providerMetadata: [String: JSONValue] = [:], id: String? = nil) -> AISteeringReceipt {
+        enqueue(AIMessage(role: .user, content: content, providerMetadata: providerMetadata), id: id, queued: true)
+    }
+    private func enqueue(_ message: AIMessage, id: String?, queued: Bool = false) -> AISteeringReceipt {
         lock.withLock {
             let id = id ?? "steer-\(UUID().uuidString)"
             if let existing = receipts[id] { return existing }
             let receipt = AISteeringReceipt()
             receipts[id] = receipt
             if state == .ended { receipt.resolve(.notDelivered(id: id, message: message, reason: .finished)) }
+            else if queued { self.queued.append(Pending(id: id, message: message, receipt: receipt)) }
             else { pending.append(Pending(id: id, message: message, receipt: receipt)) }
             return receipt
         }
@@ -78,6 +88,14 @@ public final class AISteering: @unchecked Sendable {
         }
     }
     var hasPendingMessages: Bool { lock.withLock { state == .running && !pending.isEmpty } }
+    var hasUndeliveredMessages: Bool { lock.withLock { !pending.isEmpty || !queued.isEmpty || !taken.isEmpty } }
+    func promoteQueuedMessage() -> Bool {
+        lock.withLock {
+            guard state == .running, !queued.isEmpty else { return false }
+            pending.append(queued.removeFirst())
+            return true
+        }
+    }
     func takeMessages() -> [AIMessage] {
         lock.withLock {
             guard state == .running else { return [] }
@@ -85,12 +103,12 @@ public final class AISteering: @unchecked Sendable {
             return taken.map(\.message)
         }
     }
-    func resolveTakenMessages(stepNumber: Int, sentMessages: [AIMessage]) -> [AIMessage] {
+    func resolveTakenMessages(stepNumber: Int, sentMessages: [AIMessage]) -> [AISteeringDeliveredMessage] {
         let messages = lock.withLock { () -> [Pending] in defer { taken.removeAll() }; return taken }
-        var delivered: [AIMessage] = []
+        var delivered: [AISteeringDeliveredMessage] = []
         for item in messages {
             if sentMessages.contains(where: { $0.role == .user && $0.content == item.message.content }) {
-                delivered.append(item.message)
+                delivered.append(.init(id: item.id, message: item.message))
                 item.receipt.resolve(.delivered(id: item.id, message: item.message, stepNumber: stepNumber))
             } else { item.receipt.resolve(.notDelivered(id: item.id, message: item.message, reason: .removedByPrepareStep)) }
         }
@@ -100,8 +118,8 @@ public final class AISteering: @unchecked Sendable {
         let messages = lock.withLock { () -> [Pending] in
             guard state == .running else { return [] }
             state = .ended
-            defer { pending.removeAll(); taken.removeAll() }
-            return taken + pending
+            defer { pending.removeAll(); taken.removeAll(); queued.removeAll() }
+            return taken + pending + queued
         }
         for item in messages { item.receipt.resolve(.notDelivered(id: item.id, message: item.message, reason: reason)) }
     }

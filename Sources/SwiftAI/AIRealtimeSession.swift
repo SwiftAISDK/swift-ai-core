@@ -52,6 +52,7 @@ public final class AIRealtimeSession:
         AsyncThrowingStream<AIRealtimeSessionEvent, Error>.Continuation
 
     private let model: any AIRealtimeModelV4
+    private let intent: AIRealtimeSessionIntent
     private let configuration: AIRealtimeSessionConfiguration
     private let connection: any AIDuplexWebSocketConnection
     private let abortSignal: AIAbortSignal?
@@ -79,8 +80,10 @@ public final class AIRealtimeSession:
         configuration: AIRealtimeSessionConfiguration,
         clientSecretExpiresAt: Int?,
         connection: any AIDuplexWebSocketConnection,
-        abortSignal: AIAbortSignal?
+        abortSignal: AIAbortSignal?,
+        intent: AIRealtimeSessionIntent = .conversation
     ) {
+        self.intent = intent
         self.model = model
         self.providerID = model.providerID
         self.modelID = model.modelID
@@ -97,7 +100,8 @@ public final class AIRealtimeSession:
         self.sendQueue = AIRealtimeSendQueue(
             model: model,
             connection: connection,
-            readyGate: readyGate
+            readyGate: readyGate,
+            intent: intent
         )
 
         pair.continuation.onTermination = { [weak self] termination in
@@ -188,12 +192,24 @@ public final class AIRealtimeSession:
     }
 
     /// Connects directly from a trusted process with provider credentials.
+    /// Preserves the exact public selector released in core 1.2.0.
     public static func connectServer(
         model: any AIRealtimeModelV4,
         sessionConfiguration: AIRealtimeSessionConfiguration = .init(),
         webSocketTransport: any AIDuplexWebSocketTransport =
             URLSessionDuplexWebSocketTransport.shared,
         abortSignal: AIAbortSignal? = nil
+    ) async throws -> AIRealtimeSession {
+        try await Self.connectServer(model: model, sessionConfiguration: sessionConfiguration, webSocketTransport: webSocketTransport, abortSignal: abortSignal, intent: .conversation)
+    }
+
+    public static func connectServer(
+        model: any AIRealtimeModelV4,
+        sessionConfiguration: AIRealtimeSessionConfiguration = .init(),
+        webSocketTransport: any AIDuplexWebSocketTransport =
+            URLSessionDuplexWebSocketTransport.shared,
+        abortSignal: AIAbortSignal? = nil,
+        intent: AIRealtimeSessionIntent
     ) async throws -> AIRealtimeSession {
         try abortSignal?.throwIfAborted()
         let capabilities = model.capabilities
@@ -206,11 +222,12 @@ public final class AIRealtimeSession:
         }
         return try await connect(
             model: model,
-            socketConfig: try await model.getResolvedServerWebSocketConfig(),
+            socketConfig: try await model.getResolvedServerWebSocketConfig(intent: intent),
             sessionConfiguration: sessionConfiguration,
             clientSecretExpiresAt: nil,
             webSocketTransport: webSocketTransport,
-            abortSignal: abortSignal
+            abortSignal: abortSignal,
+            intent: intent
         )
     }
 
@@ -220,7 +237,8 @@ public final class AIRealtimeSession:
         sessionConfiguration: AIRealtimeSessionConfiguration,
         clientSecretExpiresAt: Int?,
         webSocketTransport: any AIDuplexWebSocketTransport,
-        abortSignal: AIAbortSignal?
+        abortSignal: AIAbortSignal?,
+        intent: AIRealtimeSessionIntent = .conversation
     ) async throws -> AIRealtimeSession {
         guard let url = URL(string: socketConfig.url) else {
             throw AIError.invalidURL(socketConfig.url)
@@ -238,7 +256,8 @@ public final class AIRealtimeSession:
             configuration: sessionConfiguration,
             clientSecretExpiresAt: clientSecretExpiresAt,
             connection: connection,
-            abortSignal: abortSignal
+            abortSignal: abortSignal,
+            intent: intent
         )
     }
 
@@ -496,7 +515,7 @@ public final class AIRealtimeSession:
             ? .sessionStart(configuration)
             : .sessionUpdate(configuration)
         guard let wireMessage = try await model.serializeClientEvent(
-            event
+            event, intent: intent
         ) else {
             if startup == .sessionUpdate {
                 markReady()
@@ -728,6 +747,7 @@ private actor AIRealtimeReadyGate {
 }
 
 private actor AIRealtimeSendQueue {
+    private let intent: AIRealtimeSessionIntent
     private let model: any AIRealtimeModelV4
     private let connection: any AIDuplexWebSocketConnection
     private let readyGate: AIRealtimeReadyGate
@@ -737,8 +757,10 @@ private actor AIRealtimeSendQueue {
     init(
         model: any AIRealtimeModelV4,
         connection: any AIDuplexWebSocketConnection,
-        readyGate: AIRealtimeReadyGate
+        readyGate: AIRealtimeReadyGate,
+        intent: AIRealtimeSessionIntent
     ) {
+        self.intent = intent
         self.model = model
         self.connection = connection
         self.readyGate = readyGate
@@ -750,12 +772,13 @@ private actor AIRealtimeSendQueue {
         let model = self.model
         let connection = self.connection
         let readyGate = self.readyGate
+        let intent = self.intent
         let task = Task {
             try await readyGate.wait()
             if let previous {
                 try await previous.value
             }
-            if let message = try await model.serializeClientEvent(event) {
+            if let message = try await model.serializeClientEvent(event, intent: intent) {
                 try await sendRealtimeWireMessage(message, over: connection)
             }
         }

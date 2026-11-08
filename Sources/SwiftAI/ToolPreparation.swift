@@ -297,7 +297,12 @@ func validateApprovedToolApprovals(
     var denied: [AICollectedToolApproval] = []
     var invalid: [AIInvalidCollectedToolApproval] = []
 
-    for approval in approvedToolApprovals {
+    for collectedApproval in approvedToolApprovals {
+        var approval = collectedApproval
+        let definition = toolsByName[approval.toolCall.name]
+        approval.toolCall.toolMetadata = definition?.metadata
+        approval.toolCall.title = definition?.title
+        approval.toolCall.dynamic = definition?.dynamic ?? false
         let toolCall = approval.toolCall
         guard let tool = toolsByName[toolCall.name] else {
             throw AINoSuchToolError(toolName: toolCall.name, availableToolNames: Array(toolsByName.keys))

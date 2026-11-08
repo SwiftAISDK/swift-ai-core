@@ -1,65 +1,91 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-core",
-  "version": "1.2.0",
-  "releaseID": "weekly-upstream-20261101",
+  "version": "1.3.0",
+  "releaseID": "weekly-upstream-20261108",
   "source": {
-    "commit": "ea057797494ab9bb66df8c6bfd8edc10245b20e7",
-    "baseCommit": "ea057797494ab9bb66df8c6bfd8edc10245b20e7",
+    "commit": "8e233ff96fb809445aff9a5c06bb6149a24b94da",
+    "baseCommit": "8e233ff96fb809445aff9a5c06bb6149a24b94da",
     "workingTree": false,
-    "inputsSHA256": "b46f3e07b0a583d6fee81035987d74a06fc5c6109cbdf228144d1172d2c3676e"
+    "inputsSHA256": "987359720075cb67dd8bc45bdc049aee4c5d5a42b67a7eb148e697ce5d18bd77"
   },
   "dependencies": [],
   "changes": [
     {
-      "id": "weekly-upstream-20261101",
-      "notes": "Experimental AISteering + never-throwing delivery receipts and idempotent IDs; generateText/streamText, agent and Swift-native options forward steering. Steering append/prepareStep replacement, current/initial/response request state, per-step delivery metadata, final-answer selection, structured streaming boundaries, no continuation after interruption/error or unresolved tool results. Typed onStepError callback with real step number, previous steps, request/model identity and error; once-only stream failure closure and telemetry stepError. Agent onError before rethrowing original ordinary error, onAbort only on streaming cancellation/timeouts; native cause traversal up to four links. Telemetry aiVersion on copied events plus both model/tool execution contexts. fixJson does not retain incomplete minus as the first array element. AIModelFeatureSupport, AIModelCapabilities, AIModelEntry<RequestConfiguration>, AIProviderOptionDefinitions and AIModelProviderOptions native equivalents; no conflict with existing ModelCapability operation enum. Codable capability/support/section/option types preserve omitted vs false vs unknown vs conditional, optional configuration and realtime transport/connection names. Port shared async credential resolution and reasoning mapping: optional/default/override handling, closest supported effort, none-budget warning and percentage defaults. Swift-native Foundation/Sendable protocols replace JS Resolvable/promises; browser, Node, Zod and package loader mechanics remain outside the native product. Reviewed upstream: ai 7.0.153 to 7.0.159, @ai-sdk/provider 4.0.34 to 4.0.35, @ai-sdk/provider-utils 5.0.68 to 5.0.72. Validation passed: node Scripts/test-packages.mjs (all 52 owning package suites and the compatibility facade); node Scripts/sdk.mjs generate --check; node --test Scripts/tests/*.test.cjs (27 passed); docs-site check and build (100 pages). Live provider calls were not run.",
-      "compatibility": "Minor release for additive native API; existing static settings and call sites remain compatible. Updated direct dependency minimums are recorded in the manifest. Existing documented JS/framework and native product gaps remain; version-delta review does not imply full parity or live-service testing."
+      "id": "weekly-upstream-20261108",
+      "notes": "Additive queue/steering, request URL/privacy, native URL transcription/timings/words, uploaded-video descriptors, realtime intent/usage and descriptive capability APIs; keep documented enum-case migration caveats. Reviewed published upstream delta: ai 7.0.159 to 7.0.165, @ai-sdk/provider 4.0.35 to 4.0.37, @ai-sdk/provider-utils 5.0.72 to 5.0.76. Validation passed: node Scripts/test-packages.mjs (all 52 owning packages plus the complete local facade; 3,965 reported tests and 33 explicit live skips); node Scripts/sdk.mjs dev test; node Scripts/sdk.mjs generate --check; node --test Scripts/tests/*.test.cjs (27 passed); core/provider isolation and version resolution; 52 deterministic package exports, 106 catalog consumers and four additional exact retained-minimum graphs; docs-site install/check/build (100 pages); git diff --check. No paid live-service calls were run. The publication pipeline requires successful Swift 6.3.3 CI at the exact canonical source before publishing.",
+      "compatibility": "Minor release for additive native functionality under the project convention. Existing exhaustive switches must handle the new documented enum cases; see Docs/Migration.md. Exact old function/initializer selectors remain available through forwarding overloads. Direct minimums change only for concrete API use or required inherited behavior. Version-delta review does not establish full-package parity or live-service acceptance. New LanguageStreamPart ping/requestMetadata/steeringMessage, AIRealtimeConnectionKind.provider, AIModelCapabilities.Realtime.Connection.provider and AIModelCapabilitySection video/reranking/decision cases require exhaustive switches to be updated. Realtime event associated-value arity is preserved."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-core",
   "upstream": [
     {
       "name": "ai",
-      "reviewedVersion": "7.0.159",
+      "reviewedVersion": "7.0.165",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-4e/BwDoKJlMNYZaqERcTbGte+4TwroN9qKnCprog/XVfD9InzVPlhCviDhN452JIRrRsYg9BT0WsQ2C3Ds2mVQ==",
-      "sourceRef": "npm:ai@7.0.159",
-      "testRef": "028a025398782f4938303f48fbeee45c79af544b",
+      "archiveIntegrity": "sha512-cEeORsLF+9+fNzvo4nQo9hxgQoEfupjc9Xmq6OM2NGUwQQQdkHxByBdFoqnNfBE0H+qwhGQaZejvbCFFD84tBA==",
+      "sourceRef": "npm:ai@7.0.165",
+      "testRef": "0f3a85f92d1ce06ccde01d662407ef83e097a712",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
+        "DecisionMockModelV4",
+        "DecisionModelV4",
         "EmbeddingModelV3",
         "EmbeddingModelV4",
+        "EvaluationMockModelV4",
+        "EvaluationModelV4",
         "ImageModelV3",
         "ImageModelV4",
         "LanguageModelV3",
         "LanguageModelV4",
+        "MockEmbeddingModelV3",
+        "MockEmbeddingModelV4",
+        "MockImageModelV3",
+        "MockImageModelV4",
+        "MockLanguageModelV3",
+        "MockLanguageModelV4",
+        "MockRerankingModelV3",
+        "MockRerankingModelV4",
+        "MockSpeechModelV3",
+        "MockSpeechModelV4",
+        "MockSpeechTranslationModelV4",
+        "MockStreamingSpeechModelV4",
+        "MockTranscriptionModelV3",
+        "MockTranscriptionModelV4",
+        "MockVideoModelV3",
+        "MockVideoModelV4",
         "ProviderV4",
+        "RealtimeModelV4",
         "RerankingModelV3",
         "RerankingModelV4",
         "SpeechModelV3",
         "SpeechModelV4",
+        "SpeechTranslationModelV4",
+        "StreamingSpeechModelV4",
         "TranscriptionModelV3",
-        "TranscriptionModelV4"
+        "TranscriptionModelV4",
+        "VideoModelV3",
+        "VideoModelV4"
       ],
-      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
+      "contractReview": "2026-11-08: published declarations/source and exact matching-release changed tests reviewed; native implementations, per-file dispositions and broader retained gaps are recorded in Docs/WeeklyUpstreamAudit20261108.json. Reviewed delta is not full-package or live-service parity."
     },
     {
       "name": "@ai-sdk/provider",
-      "reviewedVersion": "4.0.35",
+      "reviewedVersion": "4.0.37",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-yBz6fmLS8MSCIzy7NiHEUAq56ZLD4ZA1GR6bpXBxgbwUacP1La7LuwAr/xy9jSzthem4F8Xu2OrhvU/JrE9fYA==",
-      "sourceRef": "npm:@ai-sdk/provider@4.0.35",
-      "testRef": "9b603d36186b75e58d5479445a96c76f6e2d2700",
+      "archiveIntegrity": "sha512-4uPgZ3qiX/JaQFr0dQoibUzHImZit9u05ro2BxGUnJwU4fV28BOAbKUa2OjQvqtM1tMac3bTKkaXdyzGovQXqg==",
+      "sourceRef": "npm:@ai-sdk/provider@4.0.37",
+      "testRef": "0f3a85f92d1ce06ccde01d662407ef83e097a712",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
         "DecisionModelV4",
         "EmbeddingModelV3",
         "EmbeddingModelV4",
+        "EvaluationModelV4",
         "ImageModelV3",
         "ImageModelV4",
         "LanguageModelV3",
@@ -71,28 +97,31 @@
         "SpeechModelV3",
         "SpeechModelV4",
         "SpeechTranslationModelV4",
+        "StreamingSpeechModelV4",
         "TranscriptionModelV3",
         "TranscriptionModelV4",
         "VideoModelV3",
         "VideoModelV4"
       ],
-      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
+      "contractReview": "2026-11-08: published declarations/source and exact matching-release changed tests reviewed; native implementations, per-file dispositions and broader retained gaps are recorded in Docs/WeeklyUpstreamAudit20261108.json. Reviewed delta is not full-package or live-service parity."
     },
     {
       "name": "@ai-sdk/provider-utils",
-      "reviewedVersion": "5.0.72",
+      "reviewedVersion": "5.0.76",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-M6QAztI84jWumQSvKcGOL91DxhChsWxn3D3gYtV0/7E1TPQg9BmLdIerOolUC/jghQbMlQrHyzp0hqdIhUZ2Rw==",
-      "sourceRef": "npm:@ai-sdk/provider-utils@5.0.72",
-      "testRef": "9b603d36186b75e58d5479445a96c76f6e2d2700",
+      "archiveIntegrity": "sha512-76QcCmVtSunSAbQBJtgQTTE8e+Yaz4rJJe1MRWnJ3GAQYUvNPHJejKx4jZTbhGGTdSSLaYcMBT62SISNgnGq9w==",
+      "sourceRef": "npm:@ai-sdk/provider-utils@5.0.76",
+      "testRef": "0f3a85f92d1ce06ccde01d662407ef83e097a712",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
+        "DecisionModelV4",
         "LanguageModelV4",
+        "StreamingSpeechModelV4",
         "TranscriptionModelV4"
       ],
-      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
+      "contractReview": "2026-11-08: published declarations/source and exact matching-release changed tests reviewed; native implementations, per-file dispositions and broader retained gaps are recorded in Docs/WeeklyUpstreamAudit20261108.json. Reviewed delta is not full-package or live-service parity."
     }
   ],
   "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
@@ -115,11 +144,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Porting/map.json",
-      "sha256": "33de1b87b224a5ebdf2a2349b2c1350828091031c0145ed8fc7ca388831a4cb1"
+      "sha256": "9903bdec36977d16345b2b231b2bc33edac3a3b56c9c7a82bad706f135c2150d"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/README.md",
-      "sha256": "d58c9348b49e058f0f67f4411ea0e07204c82e0e4ba3c6e44d45ad996d29c6ec"
+      "sha256": "30310a8c39beb8f5b5aa7577bda8ffc411f677b426cbdc29c077e400c1f5fbb0"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AI.swift",
@@ -143,15 +172,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeBatch.swift",
-      "sha256": "389178f6aaee11e32b5333dc98afb1a82d360588a29bc4ebb276d07616bb8597"
+      "sha256": "f9a036bb4e1fa07fa7d3233324c52d65fdc60bd62bbe88d9a60cce9ab69ae3e8"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeDecision.swift",
-      "sha256": "cc27452262b1cc8e7962a7fe5bdce3741a956a9b556076e19f3154a4305d0f44"
+      "sha256": "295a92605486b096e4e15fe97bc1a002bf5b8cf03440601aa42f56503f61636f"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeEvaluation.swift",
-      "sha256": "fc771ba42e4353f4cc682dd36b3fe7dc37d2b7c1d0bf735b7451dc041b114fd6"
+      "sha256": "ba074978ab21064c4887f5f6200f21f0468999f58fcd78c20e204843e643362f"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateObject.swift",
@@ -159,15 +188,19 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateObjectTelemetry.swift",
-      "sha256": "12df41c71f6767962f6579585178da6b01b165d01bd3a4fe1e704800d5ed8a9b"
+      "sha256": "1de1ebba350834faaa68710c6a50bc7077c43595d59294e3da63698fd69757ee"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateText.swift",
-      "sha256": "6541f32059b04b47e86593fa968b8f4c0430a2cf02783c5d4bf11a98f9313d81"
+      "sha256": "9596603c4dc17ebc557f0d660f41c21edc302cb087f5725eb3d29f7db3603d1d"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeMedia.swift",
-      "sha256": "45f41e8a5f92a4984a2f6163fe5e64343719a47e8e203dbf2f2481f627e59cb8"
+      "sha256": "cc646328d214bb6a10cc82d7733be46a1a26bc539f9141a63e8ea27709f58232"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeNativeTranscription.swift",
+      "sha256": "6611236bddf2a343af227d7e150fdb03ef916186bb86cf4b0b3c66ff1574f275"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeObjectCallbacks.swift",
@@ -183,7 +216,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamObject.swift",
-      "sha256": "04ed5c57af91d68e78e42455adb6d34000cfa33eeab62d47dbb30f9e3d05f9ba"
+      "sha256": "256fa9e75039af6b1e604f00f2c328df822311daf3e5acecfc0d8dfe91146dd4"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamObjectArray.swift",
@@ -195,7 +228,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamText.swift",
-      "sha256": "11e69ac21a47166e2ae77ad65f6d9a410875c9ee41787bb7abb1c53994dad386"
+      "sha256": "5b20e3c34b5be755d7447f78649d072b367275ec3e5ca4d446f318434b907f40"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamTextCompatibility.swift",
@@ -203,11 +236,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamTextTelemetry.swift",
-      "sha256": "f0e340ef2c3a8e1c5730a06f34e0ce788c2ed4e6f1e46ec77ec5d4bb8698f7e6"
+      "sha256": "8f9950dbae9f14327db3e8cf8659777603e6c454a8b767fbc251a4e4c6a76050"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamingSpeech.swift",
-      "sha256": "6e637cc76319448cbe88695ff6c6f99591f58fb79a3862f9f011f0b3312097a5"
+      "sha256": "1967d4fffb32f8aca2d7e4b69db1cfd99d13fa325847bd65b5869cef96a79137"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamingTranscription.swift",
@@ -215,11 +248,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeTelemetryCalls.swift",
-      "sha256": "1ab7a0726672496bc6798483eb20510e6c16020d58ee04be382dd7bbac7515e8"
+      "sha256": "170fe2defce8894f256ba921b8548ac24dc86749e2d0ab86ddc8f7dddb1c0372"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeTelemetryEvent.swift",
-      "sha256": "3fcf2341583acc3ed7f4c7806188be8b010610fa3c96af545c723f59be7eed18"
+      "sha256": "66bd6bc2516cea9e5dc70e3c50a56b8913dd0c272b5f246e4ab716ebfbe2a641"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIObjectDecoding.swift",
@@ -243,15 +276,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIRealtimeSession.swift",
-      "sha256": "179c7df24e249dfbfe98f38f490dbad6682c4a281334f59ebcd0864a988c0da6"
+      "sha256": "8f74ef2a51f82f31840de5357317a2f595adda5ff2edfae7cda2c30867669715"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIRetryRuntime.swift",
-      "sha256": "ee76c43759754b51acee196bdac966da912174ad70dd550460b063e8129d7ac9"
+      "sha256": "4e7c58dce3ca72e9aa6819d518df59719e48d87f6d1296199038777d4dfb1708"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AISteering.swift",
-      "sha256": "c10351ea6a13b561d2c4ff4bd0f5ab39ce6cf782dd7b6d2e423e3da1dd885954"
+      "sha256": "ce7e85af023a80769cf567e671af568056c82d1a7e1f5f113708e56f11340176"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIStreamTimeouts.swift",
@@ -259,19 +292,19 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITelemetryRuntime.swift",
-      "sha256": "342f3493ee1d1eb0e833137084d9e91e4992cbedd126b367c125494bb33ebfb4"
+      "sha256": "6358b7b7e39b4146a58d3a568cc2e076026435afe060af83eec87ec8c6e3d070"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITelemetrySerialization.swift",
-      "sha256": "22c0728d8aee089dd78ed977ea2b21962190b4164ba8da69f4db72c56b984916"
+      "sha256": "316e5216d3f8258ffd8b3eb2ba0fe3cbd974f8231f6a3a07131f039380383e56"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITokenUsageAndStreamRuntime.swift",
-      "sha256": "2f8e1d94c5a7e50df9e90c9d0b2a1b1cc1f4c835582eb7efff84c6e3b082b35d"
+      "sha256": "75d36d6e232098a43228f24052084711bbe63e5e7223cc5152418579ccc70872"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIToolExecution.swift",
-      "sha256": "810cb44c5bad30e97987e9b8c106ea3babecd742bcbdcaa729049ee5c6c89b62"
+      "sha256": "b8859237c5a2225c84a336a97d8301c589c3a0bc24d6bac955ca1ee2e77bd6da"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreDecision.swift",
@@ -295,7 +328,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreTools.swift",
-      "sha256": "5208d85e7e1358f4a1ebd71506fb225283adac76c6928da86b84ee1f6c184154"
+      "sha256": "0a6c62afb7eab95a9c31428489c17e7d23b51a85596c68f403e1389204604f4f"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CustomProvider.swift",
@@ -335,7 +368,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ResponseMessages.swift",
-      "sha256": "1070537fa1e894ea618e84b41d32e92be870ba02e95b00666706f33a85c21214"
+      "sha256": "43f04b904bb30a6f6e785363087bd94f3e5c45c9fe790093191941306109f962"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ResultContent.swift",
@@ -347,7 +380,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/Telemetry.swift",
-      "sha256": "c3c7e08d0a81aea06a409f8b485cad3db84624b3f99d432d887d2dd8aa840c03"
+      "sha256": "ab41e024ed212f0ac92d7f8814c79a4056cc8a956795d8ef4440a43007e50140"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/TelemetryPrivacy.swift",
+      "sha256": "b4a6777fc0424c5480628dab2d4af0d0074b8c5c9ddbd257f11da5735a70e29a"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ToolCallConcurrency.swift",
@@ -363,7 +400,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/ToolPreparation.swift",
-      "sha256": "1a8bb9eee3eaf9ab89f6e98a513293cd56b87d937f7064fe8d04d24b9677a8a1"
+      "sha256": "d2aea92e4182928cec8243d9a437541fa85acfe4a7f0a56ba4547ce072ebe3f0"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/VideoGenerationOperations.swift",
@@ -383,7 +420,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreAudioResults.swift",
-      "sha256": "92e2ac5d42abd721f71f0f3e164656c76951656d440829c7fff1fc0eed1ffd39"
+      "sha256": "29272a8407c5a18d2c62922d44fbf86c4cbb7722c176ffcb21f57fa1c26536db"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreBatch.swift",
@@ -399,7 +436,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreEvaluation.swift",
-      "sha256": "dea93e246e1043a72358c8ddca2da003547f41a169ce0e680b742034db44dd79"
+      "sha256": "be3dcf90e4258cd627b1d49008fbfccc91c1fb6b9a9df52dba357ce112fb2411"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreFileSkillResults.swift",
@@ -419,11 +456,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreProtocols.swift",
-      "sha256": "a0f21b5f3da2e94bcedd1eb3f4f1e68cd2903a3ba8621c60306b1c4f70c0e4fa"
+      "sha256": "8262e082bf47c5437b3619940a21a15c9de69fe1b464229ecb187279307f2b84"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreRealtime.swift",
-      "sha256": "1c64fabef6d0645ecba2aee8ba55e9e640d2f460a6f1bb9deca65ce4297d6c64"
+      "sha256": "674605ada68bbb2e3f0fc4c070a0f1f1ec1d1f00ff410d85e4ab6c49e5125bba"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreStreamingSpeech.swift",
@@ -439,7 +476,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreTools.swift",
-      "sha256": "bf9fb1eed6b1f2fde3b4f0607219f29c1e598d7271346829f0e1e485c84f7219"
+      "sha256": "9d27a86f854a38f9686a9fc18a4d9ac3ef26f8a3c0a12469f7ee5bd1742827f8"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreUtilities.swift",
@@ -447,7 +484,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreVideoRerankingResults.swift",
-      "sha256": "237fd17f1cc9de40a9259e1a049d568fad750afb4ed66e01414cf6bbbf9bc1c8"
+      "sha256": "4873818fea66bbb8199efc2f37e3d9420979cbc648ebf5e0f3f426e751c6c96b"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/DecisionBox.swift",
@@ -479,7 +516,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/ModelCapabilities.swift",
-      "sha256": "595e63704ba219839f79e8226161e34314f4ed5ece389f715ab1e35496cd51a8"
+      "sha256": "24be818484ad38e861b290a2150bcf7414c597adf0085faea72ead0f9e3d84bb"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/ProviderReference.swift",
@@ -515,7 +552,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/CoreUtilities.swift",
-      "sha256": "0018950e8232c8625b5f0b491d167fcc42475c992be0911d04f46c2fad125e82"
+      "sha256": "ad8af9d49c1f48723201d656aacc292a6e86efa2cdea4aaa5662593f3473b496"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/DecisionLanguageModel.swift",
@@ -575,11 +612,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/PromptConversion.swift",
-      "sha256": "bb0d344d074753772c986cba0f3db8aa737e6d0fbabace70c01b476bac33a1e4"
+      "sha256": "039c3bdeca19adc0db181485d1d6d5aea7775409310eedb3734b06bfc7b53d00"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/PromptStandardization.swift",
       "sha256": "a6f4b42afdb023b6e798e2931c06d3567a257c06165c1407e96bc56d89530a33"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/ProviderOptionsResolution.swift",
+      "sha256": "483f2a87ace43086291996f1b31332fa82ac8ac00bb256cc09f0464b92af8212"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProviderUtilities/RerankingParsing.swift",
@@ -643,7 +684,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HTTP.swift",
-      "sha256": "cdafe44e89e1c3bf7aebe2e7cb5175ce5ca8754ea1fb9fbc6f2c44d24bef39d3"
+      "sha256": "c65f2ad258d9ff9a27312176397ab1a9e3bd1871a540cecb189c19ab16aabf89"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAITransport/HTTPDNSPinning.swift",
@@ -687,7 +728,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderTests/CoreContractTests.swift",
-      "sha256": "af9352d93b6ab46d90b2a52d53e3d9675d29f3b4d67467f284d0208256121b7a"
+      "sha256": "2ed97b33a25375e5e204e55093479f8a0fb89c1fcde9149504aede902c8602c6"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderTests/Weekly20261101ModelCapabilitiesTests.swift",
@@ -710,6 +751,10 @@
       "sha256": "b1f948e198b119374754dd953441047e38b56db84b9f84f1ccb38a8469a15826"
     },
     {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/Weekly20261108UtilitiesTests.swift",
+      "sha256": "0d31e967c9628dd8aeb0df9675343fb4f3ce869da6b02d83ca25923a00775284"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/AiPartialJSONUpstreamTests.swift",
       "sha256": "4b2b06dd62aebb44fc766ddc7359d7228c895d12a19ec8365d3817349104a8f4"
     },
@@ -719,7 +764,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261101CoreTests.swift",
-      "sha256": "d639d840fa173c433e3d27f07c0e6fb5e45ee0f978eedae0f1fcc4a65d9a4c5c"
+      "sha256": "9f284b176beacde0f5d21097d329fabc15f0680aed81b983ee31dfea9206533b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261108CoreSelectorTests.swift",
+      "sha256": "ac7a961e7d27de6dce5db6309be27cdf52367a0da9ca6fb004e27f316265a73b"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261108CoreTests.swift",
+      "sha256": "5e1644ef300077511f9427e549a64ee9f2ab23e147d98f3b4107cc74b1f04c15"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/DownloadURLValidationTests.swift",
@@ -735,7 +788,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPRedirectSecurityTests.swift",
-      "sha256": "1ce4e89712d51111002a148146ec294d56d9f28bf8fc495a58908a77cef178c0"
+      "sha256": "3fb3cc0015673d45053dddd60a32ab4ab33ea552055ba35043a3897a246a7ea6"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPResponseSizeLimitTests.swift",

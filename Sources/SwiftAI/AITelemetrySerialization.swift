@@ -179,6 +179,7 @@ func imageFileTelemetryJSON(_ file: ImageInputFile) -> JSONValue {
 
 func transcriptionRequestTelemetryInput(_ request: AudioTranscriptionRequest) -> JSONValue {
     .object([
+        "timestampGranularities": request.timestampGranularities.map { .array($0.map { .string($0.rawValue) }) },
         "fileName": .string(request.fileName),
         "mimeType": .string(request.mimeType),
         "byteLength": .number(Double(request.audio.count)),
@@ -192,6 +193,7 @@ func transcriptionRequestTelemetryInput(_ request: AudioTranscriptionRequest) ->
 
 func transcriptionRequestMetadataBody(_ request: AudioTranscriptionRequest) -> JSONValue {
     .object([
+        "timestampGranularities": request.timestampGranularities.map { .array($0.map { .string($0.rawValue) }) },
         "fileName": .string(request.fileName),
         "mimeType": .string(request.mimeType),
         "byteLength": .number(Double(request.audio.count)),
@@ -551,6 +553,7 @@ func transcriptionTelemetryOutput(_ result: TranscriptionResult) -> JSONValue {
         "language": result.language.map(JSONValue.string),
         "durationInSeconds": result.durationInSeconds.map(JSONValue.number),
         "segmentCount": .number(Double(result.segments.count)),
+        "words": result.words.map { .array($0.map { .object(["text": .string($0.text), "startSecond": .number($0.startSecond), "endSecond": .number($0.endSecond)]) }) },
         "usage": result.usage.map(JSONValue.object),
         "requestMetadata": aiRequestMetadataJSON(result.requestMetadata),
         "rawValue": result.rawValue
@@ -588,6 +591,7 @@ func videoTelemetryOutput(_ result: VideoGenerationResult) -> JSONValue {
     .object([
         "urls": .array(result.urls.map(JSONValue.string)),
         "base64VideoCount": .number(Double(result.base64Videos.count)),
+        "uploadedVideoCount": .number(Double(result.uploadedVideos.count)),
         "operationID": result.operationID.map(JSONValue.string),
         "mediaType": result.mediaType.map(JSONValue.string),
         "requestMetadata": aiRequestMetadataJSON(result.requestMetadata),
@@ -634,10 +638,11 @@ func skillUploadTelemetryOutput(_ result: SkillUploadResult) -> JSONValue {
 }
 
 func aiRequestMetadataJSON(_ metadata: AIRequestMetadata) -> JSONValue? {
-    guard metadata.body != nil || !metadata.headers.isEmpty else {
+    guard metadata.body != nil || !metadata.headers.isEmpty || metadata.url != nil else {
         return nil
     }
     return .object([
+        "url": metadata.url.map(JSONValue.string),
         "body": metadata.body,
         "headers": metadata.headers.isEmpty ? nil : .object(metadata.headers.mapValues(JSONValue.string))
     ])

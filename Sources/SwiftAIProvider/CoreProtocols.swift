@@ -162,6 +162,8 @@ public protocol TranscriptionModel: Sendable {
     var providerID: String { get }
     var modelID: String { get }
     func transcribe(_ request: AudioTranscriptionRequest) async throws -> TranscriptionResult
+    /// Return nil to fall back to secure local downloading. Request headers belong to the provider, never the audio host.
+    func transcribeFromURL(_ request: AudioURLTranscriptionRequest) async throws -> TranscriptionResult?
 }
 
 public protocol SpeechModel: Sendable {
@@ -319,3 +321,7 @@ public extension AIProvider {
 
 /// A video model that validates its own raw input combinations before normalization.
 public protocol RawVideoGenerationInputModel: VideoModel {}
+
+public extension TranscriptionModel {
+    func transcribeFromURL(_ request: AudioURLTranscriptionRequest) async throws -> TranscriptionResult? { nil }
+}
