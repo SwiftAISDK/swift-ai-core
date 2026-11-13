@@ -27,6 +27,7 @@ extension AI {
             modelID: model.modelID,
             input: languageRequestTelemetryInput(request),
             telemetry: telemetry,
+            redactor: model.telemetryRedactor,
             retryPolicy: retryPolicy,
             abortSignal: request.abortSignal,
             output: textGenerationTelemetryOutput,
@@ -43,7 +44,8 @@ extension AI {
             result.requestMetadata = sanitizedRequestMetadata(result.requestMetadata)
             result = try await materializeGeneratedFiles(
                 in: result,
-                abortSignal: request.abortSignal
+                abortSignal: request.abortSignal,
+                download: request.experimentalDownload
             )
             if result.responseMetadata.modelID == nil {
                 result.responseMetadata.modelID = model.modelID
@@ -138,7 +140,8 @@ extension AI {
             operationID: "ai.generateText",
             providerID: model.providerID,
             modelID: model.modelID,
-            telemetry: telemetry
+            telemetry: telemetry,
+            redactor: model.telemetryRedactor
         )
 
         let toolDiscovery = AIToolDiscoveryState()

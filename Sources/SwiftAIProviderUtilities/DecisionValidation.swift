@@ -35,7 +35,8 @@ public func validateDecisionInput(state: AIDecisionState, questions: [String: AI
 package func prepareDecisionState(
     _ state: AIDecisionState,
     abortSignal: AIAbortSignal?,
-    transport: any AITransport = URLSessionTransport.shared
+    transport: any AITransport = URLSessionTransport.shared,
+    download: AIDownloadFunction? = nil
 ) async throws -> [AIDecisionStatePart] {
     let parts: [AIDecisionStatePart]
     switch state {
@@ -66,7 +67,15 @@ package func prepareDecisionState(
         case let .url(url):
             let response: AIHTTPResponse
             do {
-                response = try await downloadURL(url.absoluteString, transport: transport, abortSignal: abortSignal)
+                if let download {
+                    let results = try await download([.init(url: url, isURLSupportedByModel: false, abortSignal: abortSignal)])
+                    guard results.count == 1, let result = results[0] else { throw AIDownloadError(url: url.absoluteString, message: "State file URL must be downloaded; the download function returned no data.") }
+                    response = .init(statusCode: 200, headers: result.mediaType.map { ["content-type": $0] } ?? [:], body: result.data)
+                } else {
+                    // Swift's native default pins DNS at connection time; unlike
+                    // unguarded JS fetch it remains safe for URL-backed state.
+                    response = try await downloadURL(url.absoluteString, transport: transport, abortSignal: abortSignal)
+                }
             } catch {
                 if error is AIAbortError || error is CancellationError || error is AIDownloadError { throw error }
                 throw AIDownloadError(url: url.absoluteString, message: String(describing: error))

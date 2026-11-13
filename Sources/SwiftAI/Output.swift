@@ -97,7 +97,10 @@ public struct AIOutput<FinalOutput: Sendable, PartialOutput: Sendable>: Sendable
         _ repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)?
     ) async throws -> AIOutputGenerationResult<FinalOutput?>
 
-    internal var partialOutputFromText: @Sendable (_ text: String) -> PartialOutput?
+    internal var makeIncrementalPartialParser: (@Sendable () -> @Sendable (String) -> AIIncrementalPartialUpdate<PartialOutput>)?
+    internal var partialOutputFromText: @Sendable (_ text: String) -> PartialOutput? {
+        didSet { makeIncrementalPartialParser = nil }
+    }
 
     internal init(
         kind: AIOutputKind,
@@ -130,6 +133,7 @@ public struct AIOutput<FinalOutput: Sendable, PartialOutput: Sendable>: Sendable
             _ providerID: String,
             _ repairText: (@Sendable (AIObjectRepairContext) async throws -> String?)?
         ) async throws -> AIOutputGenerationResult<FinalOutput?>,
+        makeIncrementalPartialParser: (@Sendable () -> @Sendable (String) -> AIIncrementalPartialUpdate<PartialOutput>)? = nil,
         partialOutputFromText: @escaping @Sendable (_ text: String) -> PartialOutput? = { _ in nil }
     ) {
         self.kind = kind
@@ -141,6 +145,7 @@ public struct AIOutput<FinalOutput: Sendable, PartialOutput: Sendable>: Sendable
         self.requestForOutput = requestForOutput
         self.optionalResultFromTextResult = optionalResultFromTextResult
         self.partialOutputFromText = partialOutputFromText
+        self.makeIncrementalPartialParser = makeIncrementalPartialParser
     }
 }
 
@@ -414,6 +419,19 @@ public enum Output {
                     text: result.structuredOutputText == nil ? parsed.text : result.text,
                     textResult: result
                 )
+            },
+            makeIncrementalPartialParser: {
+                let parser = AIArrayOutputStreamParser<Element>(skipInvalidElements: true) { value in
+                    try AIJSONSchemaValidator.validate(value, schema: element)
+                    return try JSONDecoder().decode(Element.self, from: encodeJSONBody(value))
+                }
+                return { delta in
+                    switch parser.append(delta) {
+                    case .unchanged: return .unchanged
+                    case .fallback: return .fallback
+                    case let .snapshot(raw, elements): return .snapshot(elements, .array(raw))
+                    }
+                }
             },
             partialOutputFromText: { text in
                 guard let partial = arrayPartialElements(from: text) else { return nil }
@@ -802,8 +820,21 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
             var rawValues: [JSONValue] = []
             var lastPublishedText: String?
             var stepFinished = false
+            var incrementalParser = output.makeIncrementalPartialParser?()
+            var lastArraySnapshot: JSONValue?
 
-            func publishPartialIfAvailable() {
+            func publishPartialIfAvailable(_ delta: String) {
+                if let parser = incrementalParser {
+                    switch parser(delta) {
+                    case .unchanged: return
+                    case let .snapshot(partial, fingerprint):
+                        lastArraySnapshot = fingerprint
+                        lastPublishedText = step.text
+                        continuation.yield(.partialOutput(partial)); return
+                    case .fallback: incrementalParser = nil
+                    }
+                }
+                if let lastArraySnapshot, output.kind == .array, arrayPartialElements(from: step.text) == lastArraySnapshot { return }
                 guard step.text != lastPublishedText,
                       let partial = output.partialOutputFromText(step.text) else {
                     return
@@ -822,6 +853,7 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
                             step = LanguageStreamToolStep()
                             rawValues.removeAll(keepingCapacity: true)
                             lastPublishedText = nil
+                            incrementalParser = output.makeIncrementalPartialParser?(); lastArraySnapshot = nil
                             stepFinished = false
                         }
                     }
@@ -830,6 +862,7 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
                         step = LanguageStreamToolStep()
                         rawValues.removeAll(keepingCapacity: true)
                         lastPublishedText = nil
+                        incrementalParser = output.makeIncrementalPartialParser?(); lastArraySnapshot = nil
                         step.record(part)
                         for warning in warnings {
                             continuation.yield(.warning(warning))
@@ -837,11 +870,11 @@ func mapStructuredLanguageStreamToOutputStream<FinalOutput: Sendable, PartialOut
                     case let .textDelta(delta):
                         step.record(part)
                         continuation.yield(.textDelta(delta))
-                        publishPartialIfAvailable()
+                        publishPartialIfAvailable(delta)
                     case let .textDeltaPart(_, delta, _):
                         step.record(part)
                         continuation.yield(.textDelta(delta))
-                        publishPartialIfAvailable()
+                        publishPartialIfAvailable(delta)
                     case let .source(source):
                         step.record(part)
                         continuation.yield(.source(source))
@@ -1035,3 +1068,4 @@ private func mapObjectStreamToOutputStream<FinalOutput: Sendable, PartialOutput:
         continuation.onTermination = { _ in task.cancel() }
     }
 }
+internal enum AIIncrementalPartialUpdate<Value: Sendable>: Sendable { case unchanged, snapshot(Value, JSONValue), fallback }

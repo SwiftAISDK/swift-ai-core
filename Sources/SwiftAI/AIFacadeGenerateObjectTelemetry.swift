@@ -50,6 +50,7 @@ func generateObjectResult<Output: Sendable>(
             schemaDescription: schemaDescription
         ),
         telemetry: telemetry,
+        redactor: model.telemetryRedactor,
         retryPolicy: retryPolicy,
         abortSignal: request.abortSignal,
         callID: callID,
@@ -61,7 +62,7 @@ func generateObjectResult<Output: Sendable>(
     ) {
         var textResult: TextGenerationResult?
         do {
-            let generatedResult = try await TelemetryDispatcher(options: telemetry).executeLanguageModelCall(
+            let generatedResult = try await TelemetryDispatcher(options: telemetry, redactor: model.telemetryRedactor).executeLanguageModelCall(
                 callID: callID,
                 operationID: "ai.generateObject",
                 providerID: model.providerID,

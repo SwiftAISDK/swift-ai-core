@@ -10,6 +10,7 @@ func withTelemetry<Output: Sendable>(
     modelID: String?,
     input: JSONValue?,
     telemetry: Telemetry.Options?,
+    redactor: AITelemetryRedactor? = nil,
     retryPolicy: AIRetryPolicy,
     abortSignal: AIAbortSignal? = nil,
     callID providedCallID: String? = nil,
@@ -24,7 +25,7 @@ func withTelemetry<Output: Sendable>(
     stepError: (@Sendable (any Error) async -> Void)? = nil,
     operation: @escaping @Sendable () async throws -> Output
 ) async throws -> Output {
-    let dispatcher = TelemetryDispatcher(options: telemetry)
+    let dispatcher = TelemetryDispatcher(options: telemetry, redactor: redactor)
     guard dispatcher.isEnabled else {
         let result: Output
         do { result = try await withRetry(policy: retryPolicy, abortSignal: abortSignal, operation: operation) }

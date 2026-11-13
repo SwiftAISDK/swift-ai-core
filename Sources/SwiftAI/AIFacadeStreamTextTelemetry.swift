@@ -18,6 +18,7 @@ func streamTextWithTelemetry(
     retryPolicy: AIRetryPolicy,
     streamRetries: Int? = nil,
     telemetry: Telemetry.Options?,
+    redactor: AITelemetryRedactor? = nil,
     abortSignal: AIAbortSignal? = nil,
     logWarnings: Bool = true,
     onStepError: (@Sendable (any Error) async -> Void)? = nil,
@@ -35,6 +36,7 @@ func streamTextWithTelemetry(
             retryPolicy: retryPolicy,
             streamRetries: streamRetries,
             telemetry: telemetry,
+            redactor: redactor,
             abortSignal: abortSignal,
             logWarnings: logWarnings,
             onStepError: onStepError,
@@ -54,6 +56,7 @@ func streamTextWithTelemetryParts(
     retryPolicy: AIRetryPolicy,
     streamRetries: Int? = nil,
     telemetry: Telemetry.Options?,
+    redactor: AITelemetryRedactor? = nil,
     abortSignal: AIAbortSignal? = nil,
     logWarnings: Bool = true,
     onStepError: (@Sendable (any Error) async -> Void)? = nil,
@@ -61,7 +64,7 @@ func streamTextWithTelemetryParts(
     onAbort: (@Sendable ((any Error)?) async -> Void)? = nil,
     reportsStepErrors: Bool = true
 ) -> AsyncThrowingStream<StreamTextTelemetryPart, Error> {
-    let dispatcher = TelemetryDispatcher(options: telemetry)
+    let dispatcher = TelemetryDispatcher(options: telemetry, redactor: redactor)
     let callID = UUID().uuidString
     let started = DispatchTime.now().uptimeNanoseconds
     let terminalState = AIStreamTerminalState()

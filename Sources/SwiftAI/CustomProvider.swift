@@ -25,7 +25,7 @@ public enum AIProviderRegistryError: Error, Equatable, CustomStringConvertible, 
     }
 }
 
-public final class AIProviderRegistry: AIProvider, AIEvaluationProvider, AIDecisionProvider, @unchecked Sendable {
+public final class AIProviderRegistry: AIProvider, AIEvaluationProvider, AIDecisionProvider, AIExtractionProvider, @unchecked Sendable {
     public let providerID: String
     public let supportedCapabilities: Set<ModelCapability>
 
@@ -112,6 +112,14 @@ public final class AIProviderRegistry: AIProvider, AIEvaluationProvider, AIDecis
             throw AIError.unsupportedModel(provider: providerID, capability: .decision, modelID: routedModelID)
         }
         return try validateDecisionModelVersion(decisionProvider.decisionModel(routedModelID))
+    }
+
+    public func extractionModel(_ modelID: String) throws -> any AIExtractionModelV4 {
+        let (providerID, routedModelID) = try split(modelID, modelType: "extractionModel")
+        guard let extractionProvider = try provider(providerID, modelType: "extractionModel") as? any AIExtractionProvider else {
+            throw AIError.unsupportedModel(provider: providerID, capability: .extraction, modelID: routedModelID)
+        }
+        return try validateExtractionModelVersion(extractionProvider.extractionModel(routedModelID))
     }
 
     public func files(_ providerID: String) throws -> any AIFileClient {
@@ -234,7 +242,7 @@ public func experimentalCreateProviderRegistry(
     )
 }
 
-public final class AICustomProvider: AIFileProvider, AISkillsProvider, AIEvaluationProvider, AIDecisionProvider, @unchecked Sendable {
+public final class AICustomProvider: AIFileProvider, AISkillsProvider, AIEvaluationProvider, AIDecisionProvider, AIExtractionProvider, @unchecked Sendable {
     public let providerID: String
     public let supportedCapabilities: Set<ModelCapability>
 
@@ -491,6 +499,13 @@ public final class AICustomProvider: AIFileProvider, AISkillsProvider, AIEvaluat
             return try validateDecisionModelVersion(fallback.decisionModel(modelID))
         }
         throw AIError.unsupportedModel(provider: providerID, capability: .decision, modelID: modelID)
+    }
+
+    public func extractionModel(_ modelID: String) throws -> any AIExtractionModelV4 {
+        if let fallback = fallbackProvider as? any AIExtractionProvider {
+            return try validateExtractionModelVersion(fallback.extractionModel(modelID))
+        }
+        throw AIError.unsupportedModel(provider: providerID, capability: .extraction, modelID: modelID)
     }
 
     public func files() throws -> any AIFileClient {

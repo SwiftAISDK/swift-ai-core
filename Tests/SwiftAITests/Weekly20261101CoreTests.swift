@@ -161,7 +161,7 @@ struct Weekly20261101CoreTests {
         #expect(errors.first?.providerID == "weekly")
         #expect(errors.first?.error as? AIError == weeklyFailure)
         let events = await telemetry.events
-        #expect(events.allSatisfy { $0.aiVersion == "7.0.165" })
+        #expect(events.allSatisfy { $0.aiVersion == "7.0.172" })
         #expect(events.filter { $0.kind == .stepError }.count == 1)
         #expect(events.first { $0.kind == .stepError }?.input?["stepNumber"] == 1)
         #expect(events.last?.kind == .error)
@@ -271,7 +271,7 @@ struct Weekly20261101CoreTests {
         original.aiVersion = "caller"
         await dispatcher.record(original)
         #expect(original.aiVersion == "caller")
-        #expect(await recorder.events.first?.aiVersion == "7.0.165")
+        #expect(await recorder.events.first?.aiVersion == "7.0.172")
     }
 
     @Test func typedOutputSupportsSteeringAndCallbacks() async throws {
@@ -340,7 +340,7 @@ struct Weekly20261101CoreTests {
         let recorder = WeeklyTelemetry(), dispatcher = TelemetryDispatcher(options: Telemetry.Options(integrations: [recorder]))
         _ = try await dispatcher.executeLanguageModelCall(callID: "call", operationID: "operation", providerID: "weekly", modelID: "model") { "result" }
         _ = try await dispatcher.executeTool(callID: "call", toolCallID: "tool", toolName: "name") { "result" }
-        #expect(await recorder.wrapperVersions == ["7.0.165", "7.0.165"])
+        #expect(await recorder.wrapperVersions == ["7.0.172", "7.0.172"])
     }
 
 

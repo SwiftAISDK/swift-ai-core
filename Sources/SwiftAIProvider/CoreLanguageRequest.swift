@@ -2,6 +2,8 @@ import Foundation
 
 
 public struct LanguageModelRequest: Sendable {
+    /// Caller-owned URL downloader for prompt assets and generated files.
+    public var experimentalDownload: AIDownloadFunction? = nil
     public var messages: [AIMessage]
     public var temperature: Double?
     public var topP: Double?

@@ -34,7 +34,8 @@ public static func streamObjectArray<Element: Decodable & Sendable>(
                 callbacks: arrayEnvelopeCallbacks(callbacks),
                 jsonInstruction: jsonInstruction,
                 repairText: repairText
-            )
+            ),
+            elementSchema: elementSchema
         )
     }
 

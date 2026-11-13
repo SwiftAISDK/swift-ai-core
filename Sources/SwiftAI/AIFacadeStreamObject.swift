@@ -49,6 +49,7 @@ extension AI {
                 ),
                 retryPolicy: retryPolicy,
                 telemetry: telemetry,
+                redactor: model.telemetryRedactor,
                 callbacks: callbacks
             )
         }
@@ -230,6 +231,7 @@ extension AI {
             ),
             retryPolicy: retryPolicy,
             telemetry: telemetry,
+            redactor: model.telemetryRedactor,
             callbacks: callbacks
         )
     }

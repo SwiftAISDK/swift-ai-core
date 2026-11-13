@@ -136,6 +136,7 @@ public func wrapProvider(
 }
 
 final class AIWrappedLanguageModel: LanguageModel, @unchecked Sendable {
+    var telemetryRedactor: AITelemetryRedactor? { model.telemetryRedactor }
     private let model: any LanguageModel
     private let middleware: AILanguageModelMiddleware
     let providerID: String

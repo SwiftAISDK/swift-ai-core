@@ -160,13 +160,18 @@ func mapEnumObjectStream(
 }
 
 func mapArrayObjectStream<Element: Decodable & Sendable>(
-    _ stream: AsyncThrowingStream<ObjectStreamPart<AIObjectArrayEnvelope<Element>>, Error>
+    _ stream: AsyncThrowingStream<ObjectStreamPart<AIObjectArrayEnvelope<Element>>, Error>,
+    elementSchema: JSONValue
 ) -> AsyncThrowingStream<ObjectStreamPart<[Element]>, Error> {
     AsyncThrowingStream { continuation in
         let task = Task {
             var text = ""
             var lastPartialObject: JSONValue?
             var lastPartialElementCount: Int?
+            var parser: AIArrayOutputStreamParser<Element>? = .init(skipInvalidElements: false) { value in
+                try AIJSONSchemaValidator.validate(value, schema: elementSchema)
+                return try JSONDecoder().decode(Element.self, from: encodeJSONBody(value))
+            }
 
             func yieldPartial(_ elements: [Element]) {
                 guard elements.count != lastPartialElementCount else {
@@ -195,11 +200,20 @@ func mapArrayObjectStream<Element: Decodable & Sendable>(
                     case let .textDelta(delta):
                         text += delta
                         continuation.yield(.textDelta(delta))
-                        yieldPartialIfAvailable()
+                        if let activeParser = parser {
+                            switch activeParser.append(delta) {
+                            case .unchanged: break
+                            case let .snapshot(raw, elements):
+                                let partial = JSONValue.array(raw)
+                                if partial != lastPartialObject { lastPartialObject = partial; continuation.yield(.partialObject(partial)) }
+                                yieldPartial(elements)
+                            case .fallback: parser = nil; yieldPartialIfAvailable()
+                            }
+                        } else { yieldPartialIfAvailable() }
                     case .partialObject:
-                        yieldPartialIfAvailable()
+                        if parser == nil { yieldPartialIfAvailable() }
                     case let .partial(envelope):
-                        yieldPartial(envelope.elements)
+                        if parser == nil { yieldPartial(envelope.elements) }
                     default:
                         continuation.yield(arrayStreamPart(part))
                     }

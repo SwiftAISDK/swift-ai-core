@@ -1,5 +1,5 @@
 <!-- Generated distribution; edit the canonical repository. -->
-# swift-ai-core 1.3.0
+# swift-ai-core 1.4.0
 
 Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions are in PROVENANCE.json and Porting/.
 
@@ -8,7 +8,7 @@ Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions
 Add this package to your SwiftPM dependencies:
 
 ```swift
-.package(url: "https://github.com/SwiftAISDK/swift-ai-core.git", from: "1.3.0")
+.package(url: "https://github.com/SwiftAISDK/swift-ai-core.git", from: "1.4.0")
 ```
 
 Products: `SwiftAI`, `SwiftAIProvider`, `SwiftAIProviderUtilities`, `SwiftAITransport`.
@@ -97,3 +97,32 @@ implementation dependencies are absent.
 Licensed under Apache-2.0; see LICENSE. Vercel AI SDK names describe provenance,
 not affiliation or endorsement. Contribute through the canonical SwiftAISDK
 repository, rather than editing generated distribution repositories.
+
+Experimental extraction is available through `AI.experimentalExtract`. Pass an
+`AIExtractionModelV4`, shared `AIDecisionState`, and named `AIExtractionField`
+descriptors for text, numbers, dates, times, datetimes, durations, or lists.
+The facade validates every answer, confidence, number constraint and evidence
+source; a refusal rejects the entire operation. A typed answer's `value == nil`
+represents upstream JSON null. Text-source offsets use UTF-16 code units.
+`AIExtractionLanguageModel` adapts structured language output and supports
+parallel field groups with sibling cancellation and complete-usage aggregation.
+A direct adapter call preserves provider answers; the facade performs final
+field-value validation. `ModelCapability.extraction` is a new enum case.
+
+`LanguageModelRequest.experimentalDownload` receives ordered URL requests with
+cancellation and model URL-support information. It covers prompt assets and
+model-generated file URLs. A nil prompt download preserves the URL; generated
+files require bytes. `createDownload(transport:maxBytes:)` captures a protected
+transport. Experimental decision and extraction calls also accept a `download`
+callback. Swift retains its native DNS-pinned default for untrusted URLs; this
+is intentionally stronger than the current unguarded JavaScript default.
+
+Built-in structured-array streams scan new text and validate completed elements
+once, keep the last item pending until the next begins or the envelope closes,
+and retain legacy parsing for nonstandard envelopes. Parser state belongs to
+each stream. Provider `LanguageModel.telemetryRedactor` hooks sanitize only
+SDK-owned metadata copies; prompts, tool results and application context are
+preserved. Nested telemetry integrations see sanitized provider result/error
+views while callers receive the original forwarded results and errors. A failed
+redactor omits the affected metadata. These hooks do not redact arbitrary user
+content or promise general secret detection.

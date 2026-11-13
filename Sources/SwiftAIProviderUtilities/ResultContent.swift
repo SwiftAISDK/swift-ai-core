@@ -6,7 +6,8 @@ import SwiftAITransport
 func resolveGeneratedFile(
     _ file: AIStreamFile,
     abortSignal: AIAbortSignal?,
-    transport: any AITransport = URLSessionTransport.shared
+    transport: any AITransport = URLSessionTransport.shared,
+    download: AIDownloadFunction? = nil
 ) async throws -> AIStreamFile {
     guard file.data == nil, file.providerReference == nil, let url = file.url else {
         return file
@@ -15,7 +16,12 @@ func resolveGeneratedFile(
     try abortSignal?.throwIfAborted()
     let response: AIHTTPResponse
     do {
-        response = try await downloadURL(url, transport: transport, abortSignal: abortSignal)
+        if let download {
+            guard let parsedURL = URL(string: url) else { throw AIDownloadError(url: url, message: "Invalid generated file URL.") }
+            let results = try await download([.init(url: parsedURL, isURLSupportedByModel: false, abortSignal: abortSignal)])
+            guard results.count == 1, let result = results[0] else { throw AIDownloadError(url: url, message: "Generated file URL must be downloaded, but the download function returned no data.") }
+            response = .init(statusCode: 200, body: result.data)
+        } else { response = try await downloadURL(url, transport: transport, abortSignal: abortSignal) }
     } catch {
         if error is AIAbortError || error is CancellationError { throw error }
         if let downloadError = error as? AIDownloadError { throw downloadError }
@@ -37,7 +43,8 @@ func resolveGeneratedFile(
 func materializeGeneratedFileContent(
     _ content: [AIResultContentPart],
     abortSignal: AIAbortSignal?,
-    transport: any AITransport = URLSessionTransport.shared
+    transport: any AITransport = URLSessionTransport.shared,
+    download: AIDownloadFunction? = nil
 ) async throws -> [AIResultContentPart] {
     var output: [AIResultContentPart] = []
     output.reserveCapacity(content.count)
@@ -48,13 +55,15 @@ func materializeGeneratedFileContent(
             output.append(.file(try await resolveGeneratedFile(
                 file,
                 abortSignal: abortSignal,
-                transport: transport
+                transport: transport,
+        download: download
             )))
         case let .reasoningFile(file):
             output.append(.reasoningFile(try await resolveGeneratedFile(
                 file,
                 abortSignal: abortSignal,
-                transport: transport
+                transport: transport,
+        download: download
             )))
         default:
             output.append(part)
@@ -66,13 +75,15 @@ func materializeGeneratedFileContent(
 package func materializeGeneratedFiles(
     in result: TextGenerationResult,
     abortSignal: AIAbortSignal?,
-    transport: any AITransport = URLSessionTransport.shared
+    transport: any AITransport = URLSessionTransport.shared,
+    download: AIDownloadFunction? = nil
 ) async throws -> TextGenerationResult {
     var result = result
     result.content = try await materializeGeneratedFileContent(
         result.content,
         abortSignal: abortSignal,
-        transport: transport
+        transport: transport,
+        download: download
     )
     result.refreshDerivedContent()
     return result
@@ -81,7 +92,8 @@ package func materializeGeneratedFiles(
 package func resolvingGeneratedFileStream(
     _ stream: AsyncThrowingStream<LanguageStreamPart, Error>,
     abortSignal: AIAbortSignal?,
-    transport: any AITransport = URLSessionTransport.shared
+    transport: any AITransport = URLSessionTransport.shared,
+    download: AIDownloadFunction? = nil
 ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
     AsyncThrowingStream { continuation in
         let task = Task {
@@ -93,13 +105,15 @@ package func resolvingGeneratedFileStream(
                         continuation.yield(.file(try await resolveGeneratedFile(
                             file,
                             abortSignal: abortSignal,
-                            transport: transport
+                            transport: transport,
+        download: download
                         )))
                     case let .reasoningFile(file):
                         continuation.yield(.reasoningFile(try await resolveGeneratedFile(
                             file,
                             abortSignal: abortSignal,
-                            transport: transport
+                            transport: transport,
+        download: download
                         )))
                     default:
                         continuation.yield(part)

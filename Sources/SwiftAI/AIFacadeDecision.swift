@@ -4,7 +4,7 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 
 
-private let aiDecisionUserAgent = "ai/7.0.165"
+private let aiDecisionUserAgent = "ai/7.0.172"
 
 extension AI {
     /// Decides answers using a direct Decision Model V4 instance.
@@ -26,6 +26,25 @@ extension AI {
         try await experimentalDecide(model: .model(model), state: state, questions: questions, maxOutputTokens: maxOutputTokens, reasoning: reasoning, maxRetries: maxRetries, abortSignal: abortSignal, headers: headers, providerOptions: providerOptions, telemetry: telemetry, runtimeContext: runtimeContext, onStart: onStart, onEnd: onEnd)
     }
 
+    public static func experimentalDecide(
+        model: any AIDecisionModelV4,
+        state: AIDecisionState,
+        questions: [String: AIDecisionQuestion],
+        maxOutputTokens: Int? = nil,
+        reasoning: String? = nil,
+        maxRetries: Int? = nil,
+        abortSignal: AIAbortSignal? = nil,
+        download: AIDownloadFunction?,
+        headers: [String: String] = [:],
+        providerOptions: [String: JSONValue] = [:],
+        telemetry: Telemetry.Options? = nil,
+        runtimeContext: [String: JSONValue] = [:],
+        onStart: AICallback<AIDecisionStartEvent>? = nil,
+        onEnd: AICallback<AIDecisionEndEvent>? = nil
+    ) async throws -> AIDecisionResult {
+        try await experimentalDecide(model: .model(model), state: state, questions: questions, maxOutputTokens: maxOutputTokens, reasoning: reasoning, maxRetries: maxRetries, abortSignal: abortSignal, download: download, headers: headers, providerOptions: providerOptions, telemetry: telemetry, runtimeContext: runtimeContext, onStart: onStart, onEnd: onEnd)
+    }
+
     /// Decides with either a direct model or a default-provider model ID.
     public static func experimentalDecide(
         model reference: AIDecisionModelReference,
@@ -35,6 +54,25 @@ extension AI {
         reasoning: String? = nil,
         maxRetries: Int? = nil,
         abortSignal: AIAbortSignal? = nil,
+        headers: [String: String] = [:],
+        providerOptions: [String: JSONValue] = [:],
+        telemetry: Telemetry.Options? = nil,
+        runtimeContext: [String: JSONValue] = [:],
+        onStart: AICallback<AIDecisionStartEvent>? = nil,
+        onEnd: AICallback<AIDecisionEndEvent>? = nil
+    ) async throws -> AIDecisionResult {
+        try await experimentalDecide(model: reference, state: state, questions: questions, maxOutputTokens: maxOutputTokens, reasoning: reasoning, maxRetries: maxRetries, abortSignal: abortSignal, download: nil, headers: headers, providerOptions: providerOptions, telemetry: telemetry, runtimeContext: runtimeContext, onStart: onStart, onEnd: onEnd)
+    }
+
+    public static func experimentalDecide(
+        model reference: AIDecisionModelReference,
+        state: AIDecisionState,
+        questions: [String: AIDecisionQuestion],
+        maxOutputTokens: Int? = nil,
+        reasoning: String? = nil,
+        maxRetries: Int? = nil,
+        abortSignal: AIAbortSignal? = nil,
+        download: AIDownloadFunction?,
         headers: [String: String] = [:],
         providerOptions: [String: JSONValue] = [:],
         telemetry: Telemetry.Options? = nil,
@@ -102,7 +140,7 @@ extension AI {
         await notify(event: startEvent, callback: onStart)
 
         do {
-            let preparedState = try await prepareDecisionState(state, abortSignal: abortSignal)
+            let preparedState = try await prepareDecisionState(state, abortSignal: abortSignal, download: download)
             let callOptions = AIDecisionModelV4CallOptions(
                 state: preparedState,
                 questions: questions,

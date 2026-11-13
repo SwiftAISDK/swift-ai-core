@@ -15,6 +15,7 @@ public enum ModelCapability: String, Hashable, Codable, CaseIterable, Sendable {
     case reranking
     case evaluation
     case decision
+    case extraction
 }
 
 public enum MessageRole: String, Codable, Hashable, Sendable {

@@ -965,6 +965,7 @@ public func downloadURL(
     trustedOrigin: String? = nil,
     credentialedOrigin: String? = nil
 ) async throws -> AIHTTPResponse {
+    try abortSignal?.throwIfAborted()
     let initialURL = try validatedRemoteURL(string, trustedOrigin: trustedOrigin)
     if initialURL.scheme?.lowercased() == "data" {
         return try downloadDataURL(initialURL)
@@ -979,6 +980,7 @@ public func downloadURL(
     }
     let maxRedirects = 10
     for _ in 0...maxRedirects {
+        try abortSignal?.throwIfAborted()
         let url = try validatedRemoteURL(current, trustedOrigin: trustedOrigin)
         let request = AIHTTPRequest(
             method: "GET",
@@ -994,6 +996,7 @@ public func downloadURL(
         } else {
             response = try await transport.sendValidatedDownload(request)
         }
+        try abortSignal?.throwIfAborted()
         if httpRedirectStatusCodes.contains(response.statusCode),
            let location = response.headerValue("location"),
            let nextURL = URL(string: location, relativeTo: url)?.absoluteURL {
@@ -1043,6 +1046,7 @@ public func streamDownloadURL(
 
     let maxRedirects = 10
     for _ in 0...maxRedirects {
+        try abortSignal?.throwIfAborted()
         let url = try validatedRemoteURL(current, trustedOrigin: trustedOrigin)
         let request = AIHTTPRequest(
             method: "GET",
@@ -1058,6 +1062,8 @@ public func streamDownloadURL(
         } else {
             response = try await transport.streamValidatedDownload(request)
         }
+        do { try abortSignal?.throwIfAborted() }
+        catch { response.cancelBody(); throw error }
         if httpRedirectStatusCodes.contains(response.statusCode),
            let location = response.headerValue("location"),
            let nextURL = URL(string: location, relativeTo: url)?.absoluteURL {

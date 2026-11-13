@@ -40,7 +40,11 @@ public func isURLSupported(
     }
 }
 
+public typealias AITelemetryRedactor = @Sendable (JSONValue) throws -> JSONValue
+
 public protocol LanguageModel: Sendable {
+    /// Provider-owned view of SDK metadata for telemetry. Raw application data is preserved.
+    var telemetryRedactor: AITelemetryRedactor? { get }
     var providerID: String { get }
     var modelID: String { get }
     var supportedURLs: [String: [AISupportedURLPattern]] { get }
@@ -49,6 +53,7 @@ public protocol LanguageModel: Sendable {
 }
 
 public extension LanguageModel {
+    var telemetryRedactor: AITelemetryRedactor? { nil }
     var supportedURLs: [String: [AISupportedURLPattern]] { [:] }
 
     func stream(_ request: LanguageModelRequest) -> AsyncThrowingStream<LanguageStreamPart, Error> {

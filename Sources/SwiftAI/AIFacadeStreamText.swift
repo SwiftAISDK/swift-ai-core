@@ -33,6 +33,7 @@ extension AI {
                 retryPolicy: retryPolicy,
                 streamRetries: streamRetries,
                 telemetry: telemetry,
+                redactor: model.telemetryRedactor,
                 abortSignal: request.abortSignal,
                 logWarnings: logWarnings,
                 onStepError: nil,
@@ -56,6 +57,7 @@ extension AI {
                 retryPolicy: retryPolicy,
                 streamRetries: streamRetries,
                 telemetry: telemetry,
+                redactor: model.telemetryRedactor,
                 abortSignal: preparedRequest.abortSignal,
                 logWarnings: logWarnings,
                 onStepError: nil,
@@ -74,6 +76,7 @@ extension AI {
                 retryPolicy: retryPolicy,
                 streamRetries: streamRetries,
                 telemetry: telemetry,
+                redactor: model.telemetryRedactor,
                 abortSignal: preparedRequest.abortSignal,
                 logWarnings: logWarnings,
                 onStepError: nil,
@@ -126,7 +129,8 @@ extension AI {
                 )
                 let resolvedFileStream = resolvingGeneratedFileStream(
                     canonicalStream,
-                    abortSignal: downloadedRequest.abortSignal
+                    abortSignal: downloadedRequest.abortSignal,
+                    download: downloadedRequest.experimentalDownload
                 )
                 // With `none`, raw tool parts reach timing and validation only.
                 // They must not resolve approvals or invoke input callbacks.
@@ -159,6 +163,7 @@ extension AI {
             retryPolicy: retryPolicy,
             streamRetries: streamRetries,
             telemetry: telemetry,
+            redactor: model.telemetryRedactor,
             abortSignal: operationRequest.abortSignal,
             logWarnings: logWarnings,
                 onStepError: { error in
@@ -291,6 +296,7 @@ extension AI {
                 input: languageRequestTelemetryInput(request),
                 retryPolicy: .none,
                 telemetry: telemetry,
+                redactor: model.telemetryRedactor,
                 abortSignal: request.abortSignal,
                 logWarnings: false
             )
@@ -336,7 +342,8 @@ extension AI {
                         operationID: "ai.streamText",
                         providerID: model.providerID,
                         modelID: model.modelID,
-                        telemetry: telemetry
+                        telemetry: telemetry,
+                        redactor: model.telemetryRedactor
                     )
 
                     let toolDiscovery = AIToolDiscoveryState()
@@ -668,6 +675,7 @@ extension AI {
             input: languageRequestTelemetryInput(operationRequest),
             retryPolicy: .none,
             telemetry: telemetry,
+            redactor: model.telemetryRedactor,
             abortSignal: operationRequest.abortSignal,
             logWarnings: false,
             onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },

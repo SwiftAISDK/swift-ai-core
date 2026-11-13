@@ -12,19 +12,20 @@ package func downloadUnsupportedPromptAssets(
 
     for messageIndex in output.messages.indices where output.messages[messageIndex].role == .user {
         for partIndex in output.messages[messageIndex].content.indices {
-            guard case let .imageURL(url, providerMetadata) = output.messages[messageIndex].content[partIndex],
-                  !isURLSupported(mediaType: "image/*", url: url, supportedURLs: supportedURLs) else {
-                continue
-            }
+            guard case let .imageURL(url, providerMetadata) = output.messages[messageIndex].content[partIndex] else { continue }
+            let supported = isURLSupported(mediaType: "image/*", url: url, supportedURLs: supportedURLs)
+            if supported && output.experimentalDownload == nil { continue }
 
             try output.abortSignal?.throwIfAborted()
             let response: AIHTTPResponse
             do {
-                response = try await downloadURL(
-                    url,
-                    transport: transport,
-                    abortSignal: output.abortSignal
-                )
+                if let custom = output.experimentalDownload {
+                    guard let parsedURL = URL(string: url) else { throw AIDownloadError(url: url, message: "Invalid prompt URL.") }
+                    let results = try await custom([.init(url: parsedURL, isURLSupportedByModel: supported, abortSignal: output.abortSignal)])
+                    guard results.count == 1 else { throw AIDownloadError(url: url, message: "Download results must match requests.") }
+                    guard let downloaded = results[0] else { continue }
+                    response = .init(statusCode: 200, headers: downloaded.mediaType.map { ["content-type": $0] } ?? [:], body: downloaded.data)
+                } else { response = try await downloadURL(url, transport: transport, abortSignal: output.abortSignal) }
             } catch {
                 if error is AIAbortError || error is CancellationError { throw error }
                 if let downloadError = error as? AIDownloadError { throw downloadError }
@@ -87,7 +88,18 @@ package func downloadUnsupportedPromptAssets(
                     let response: AIHTTPResponse
                     if let cached = downloadedToolAssets[urlString] { response = cached }
                     else {
-                        do { response = try await downloadURL(urlString, transport: transport, abortSignal: output.abortSignal) }
+                        do {
+                            if let custom = output.experimentalDownload {
+                                guard let url = URL(string: urlString) else { throw AIDownloadError(url: urlString, message: "Invalid tool-result URL.") }
+                                let results = try await custom([.init(url: url, isURLSupportedByModel: false, abortSignal: output.abortSignal)])
+                                guard results.count == 1 else { throw AIDownloadError(url: urlString, message: "Download results must match requests.") }
+                                guard let downloaded = results[0] else {
+                                    item["data"] = ["type": "url", "url": .string(urlString)]
+                                    item["mediaType"] = .string(mediaType); items[index] = .object(item); continue
+                                }
+                                response = .init(statusCode: 200, headers: downloaded.mediaType.map { ["content-type": $0] } ?? [:], body: downloaded.data)
+                            } else { response = try await downloadURL(urlString, transport: transport, abortSignal: output.abortSignal) }
+                        }
                         catch {
                             if error is AIAbortError || error is CancellationError || error is AIDownloadError { throw error }
                             throw AIDownloadError(url: urlString, message: String(describing: error))

@@ -14,8 +14,10 @@ struct AIRetryAttemptTelemetry: Sendable {
 struct TelemetryDispatcher: Sendable {
     var options: Telemetry.Options?
     var integrations: [any Telemetry.Integration]
+    var redactor: AITelemetryRedactor?
 
-    init(options: Telemetry.Options?) {
+    init(options: Telemetry.Options?, redactor: AITelemetryRedactor? = nil) {
+        self.redactor = redactor
         self.options = options
         guard let options, options.isEnabled else {
             integrations = []
@@ -30,8 +32,8 @@ struct TelemetryDispatcher: Sendable {
 
     func record(_ event: Telemetry.Event) async {
         guard isEnabled else { return }
-        var emitted = filteredTelemetryEvent(event)
-        emitted.aiVersion = "7.0.165"
+        var emitted = filteredTelemetryEvent(redactedTelemetryEvent(event, redactor: redactor))
+        emitted.aiVersion = "7.0.172"
         for integration in integrations {
             await integration.record(emitted)
         }
@@ -48,7 +50,18 @@ struct TelemetryDispatcher: Sendable {
             return try await operation()
         }
 
-        var execute = operation
+        let views = AITelemetryCallViews<Output>()
+        let providerRedactor = redactor
+        var execute: @Sendable () async throws -> Output = {
+            do {
+                let result = try await operation()
+                if let providerRedactor { return await views.view(result, redactor: providerRedactor) }
+                return result
+            } catch {
+                if let providerRedactor { throw await views.view(error, redactor: providerRedactor) }
+                throw error
+            }
+        }
         for integration in integrations {
             let innerExecute = execute
             execute = {
@@ -59,11 +72,12 @@ struct TelemetryDispatcher: Sendable {
                     modelID: modelID,
                     execute: innerExecute
                 )
-                context.aiVersion = "7.0.165"
+                context.aiVersion = "7.0.172"
                 return try await integration.executeLanguageModelCall(context)
             }
         }
-        return try await execute()
+        do { return await views.restore(try await execute()) }
+        catch { throw await views.restore(error) }
     }
 
     func executeTool<Output: Sendable>(
@@ -86,7 +100,7 @@ struct TelemetryDispatcher: Sendable {
                     toolName: toolName,
                     execute: innerExecute
                 )
-                context.aiVersion = "7.0.165"
+                context.aiVersion = "7.0.172"
                 return try await integration.executeTool(context)
             }
         }
@@ -117,9 +131,10 @@ struct AIToolLoopTelemetryContext: Sendable {
         operationID: String,
         providerID: String,
         modelID: String?,
-        telemetry: Telemetry.Options?
+        telemetry: Telemetry.Options?,
+        redactor: AITelemetryRedactor? = nil
     ) {
-        self.dispatcher = TelemetryDispatcher(options: telemetry)
+        self.dispatcher = TelemetryDispatcher(options: telemetry, redactor: redactor)
         self.callID = UUID().uuidString
         self.operationID = operationID
         self.providerID = providerID
