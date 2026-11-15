@@ -1,5 +1,5 @@
 <!-- Generated distribution; edit the canonical repository. -->
-# swift-ai-core 1.4.0
+# swift-ai-core 1.5.0
 
 Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions are in PROVENANCE.json and Porting/.
 
@@ -8,7 +8,7 @@ Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions
 Add this package to your SwiftPM dependencies:
 
 ```swift
-.package(url: "https://github.com/SwiftAISDK/swift-ai-core.git", from: "1.4.0")
+.package(url: "https://github.com/SwiftAISDK/swift-ai-core.git", from: "1.5.0")
 ```
 
 Products: `SwiftAI`, `SwiftAIProvider`, `SwiftAIProviderUtilities`, `SwiftAITransport`.
@@ -126,3 +126,15 @@ preserved. Nested telemetry integrations see sanitized provider result/error
 views while callers receive the original forwarded results and errors. A failed
 redactor omits the affected metadata. These hooks do not redact arbitrary user
 content or promise general secret detection.
+
+
+## Signed streaming approvals and mixed video results
+
+Core 1.5 adds explicit `toolApprovalSecret:` streaming overloads while preserving
+all existing selectors. Signed historical approvals are verified and refined
+once before execution; a changed operation is rejected. Existing unsigned stream
+overloads retain their behavior.
+
+`VideoGenerationResult.videoURLDescriptors` carries per-URL MIME types for mixed
+video results. Async multi-operation generation preserves these descriptors;
+`urls`, the common `mediaType` and existing initializers remain available.

@@ -270,14 +270,16 @@ func executeToolCalls(
     _ calls: [AIToolCall], toolsByName: [String: AITool], request: LanguageModelRequest,
     toolApproval: AIToolApproval?, repairToolCall: AIToolCallRepair? = nil,
     telemetry: AIToolLoopTelemetryContext? = nil, stepIndex: Int = 0,
-    convertToolErrorsToResults: Bool = false, invokeInputAvailableCallbacks: Bool = true
+    convertToolErrorsToResults: Bool = false, invokeInputAvailableCallbacks: Bool = true,
+    validatedInputs: [String: JSONValue] = [:]
 ) async throws -> AIToolExecutionBatch {
     let batches = try await mapToolCallsWithConcurrency(calls, concurrency: request.toolCallConcurrency, abortSignal: request.abortSignal) { call in
         try await executeToolCallsSequentially(
             [call], toolsByName: toolsByName, request: request, toolApproval: toolApproval,
             repairToolCall: repairToolCall, telemetry: telemetry, stepIndex: stepIndex,
             convertToolErrorsToResults: convertToolErrorsToResults,
-            invokeInputAvailableCallbacks: invokeInputAvailableCallbacks
+            invokeInputAvailableCallbacks: invokeInputAvailableCallbacks,
+            validatedInput: validatedInputs[call.id]
         )
     }
     var batch = AIToolExecutionBatch()
@@ -299,17 +301,26 @@ private func executeToolCallsSequentially(
     telemetry: AIToolLoopTelemetryContext? = nil,
     stepIndex: Int = 0,
     convertToolErrorsToResults: Bool = false,
-    invokeInputAvailableCallbacks: Bool = true
+    invokeInputAvailableCallbacks: Bool = true,
+    validatedInput: JSONValue? = nil
 ) async throws -> AIToolExecutionBatch {
     var batch = AIToolExecutionBatch()
     for call in calls {
         do {
-            let parsedToolCall = try await parseToolCall(
-                call,
-                toolsByName: toolsByName,
-                repairToolCall: repairToolCall,
-                request: request
-            )
+            let parsedToolCall: AIParsedToolCall
+            if let validatedInput {
+                // Historical approvals already validated the original schema input,
+                // re-applied refinement, and compared it with the signed operation.
+                // A second refinement could change that approved operation again.
+                parsedToolCall = AIParsedToolCall(toolCall: call, input: validatedInput, inputSchemaInput: nil)
+            } else {
+                parsedToolCall = try await parseToolCall(
+                    call,
+                    toolsByName: toolsByName,
+                    repairToolCall: repairToolCall,
+                    request: request
+                )
+            }
             let parsedCall = parsedToolCall.toolCall
             let refinedArguments = parsedToolCall.input
             let inputSchemaInput = parsedToolCall.inputSchemaInput
@@ -529,7 +540,10 @@ func executeHistoricalToolApprovals(
         toolApproval: { _ in .notApplicable },
         telemetry: telemetry,
         stepIndex: stepIndex,
-        convertToolErrorsToResults: true
+        convertToolErrorsToResults: true,
+        validatedInputs: try Dictionary(uniqueKeysWithValues: validated.approvedToolApprovals.map {
+            ($0.toolCall.id, try toolArguments(from: $0.toolCall))
+        })
     )
 
     let deniedApprovals = localDeniedApprovals + providerExecutedDeniedApprovals + validated.deniedToolApprovals

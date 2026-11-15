@@ -334,7 +334,7 @@ private func mergeVideoOperationResults(
         mergeVideoOperationProviderMetadata(&providerMetadata, result.providerMetadata)
     }
     let mediaTypes = Set(results.compactMap(\.mediaType))
-    return VideoGenerationResult(
+    var merged = VideoGenerationResult(
         urls: results.flatMap(\.urls),
         base64Videos: results.flatMap(\.base64Videos),
         operationID: nil,
@@ -345,6 +345,12 @@ private func mergeVideoOperationResults(
         requestMetadata: videoGenerationRequestMetadata(request),
         responseMetadata: results.last?.responseMetadata ?? AIResponseMetadata()
     )
+    merged.videoURLDescriptors = results.flatMap { result in
+        result.videoURLDescriptors.isEmpty
+            ? result.urls.map { VideoURLDescriptor(url: $0, mediaType: result.mediaType) }
+            : result.videoURLDescriptors
+    }
+    return merged
 }
 
 private func videoOperationElapsedMilliseconds(since started: UInt64) -> Int {

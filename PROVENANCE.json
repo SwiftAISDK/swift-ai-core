@@ -1,33 +1,33 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-core",
-  "version": "1.4.0",
-  "releaseID": "weekly-upstream-20261114",
+  "version": "1.5.0",
+  "releaseID": "weekly-upstream-20261115",
   "source": {
-    "commit": "07fbf86b82d83d9724bd03622e9e87e74395286f",
-    "baseCommit": "07fbf86b82d83d9724bd03622e9e87e74395286f",
+    "commit": "1e543b35e0259a5bda888665dacf2d4a7f1bb0ed",
+    "baseCommit": "1e543b35e0259a5bda888665dacf2d4a7f1bb0ed",
     "workingTree": false,
-    "inputsSHA256": "63e472c0fe891cb7636d225e1c6467e4761dc3721be68081f2afa9f0b656bb29"
+    "inputsSHA256": "5508ffc6347bffaed13fb29409eb856df9a7796d3ebdcb6f623d1e8871b52999"
   },
   "dependencies": [],
   "changes": [
     {
-      "id": "weekly-upstream-20261114",
-      "notes": "Add experimental typed field extraction with nullable answers, guesses, source metadata, whole-call validation/refusals, retries and abort-aware evidence downloads. Registries and custom fallbacks route Extraction V4. Incremental array parsing is local to each stream, and telemetry receives isolated provider-redacted views while application values remain intact. ModelCapability gains extraction; update exhaustive switches. Reviewed npm delta: ai 7.0.165 to 7.0.172, @ai-sdk/provider 4.0.37 to 4.0.38, @ai-sdk/provider-utils 5.0.76 to 5.0.81. Validation: `node Scripts/test-packages.mjs` passed all 52 owning suites and 1731 facade tests; tooling 27/27, generation/isolation checks, standalone exports and 106 minimum/latest consumers, documentation check and 101-page build passed. Publication requires green exact-source Swift 6.3.3 CI. Paid/live verification and full-package parity are not claimed.",
-      "compatibility": "Additive native APIs or capabilities under the project minor-release convention. npm baselines and Swift SemVer are independent; this reviewed delta does not establish full-package or live-service parity."
+      "id": "weekly-upstream-20261115",
+      "notes": "Verify signed historical approvals in streaming through explicit toolApprovalSecret overloads and execute the approved input after one validation/refinement pass. Preserve all earlier stream selectors and unsigned behavior. Keep per-URL MIME associations in videoURLDescriptors, including mixed-format fan-out. Upstream ai 7.0.173 counter/signature scenarios are translated; Swift immutable JSON and typed UI shape differences are recorded explicitly. Reviewed npm delta: ai 7.0.172 to 7.0.173. Validation passed: node Scripts/test-packages.mjs (55 owning packages, 2451 owning tests and 1736 compatibility tests), generation checks, 27 tooling tests, isolation/version checks, deterministic exports and minimum-dependency consumers. Documentation check/build passed (104 pages). Publication is gated by exact-source Swift 6.3.3 CI; subsequent public refs and clients are recorded in Docs/ReleaseVerification20261115.json. Paid/live-service checks were not run; this delta does not claim full-package parity.",
+      "compatibility": "Additive minor release: three explicit-secret streaming overloads, VideoURLDescriptor and videoURLDescriptors. Existing selectors/initializers remain. A signed replay whose refinement changes the approved operation is rejected. No new enum cases or forced migration."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-core",
   "upstream": [
     {
       "name": "ai",
-      "reviewedVersion": "7.0.172",
+      "reviewedVersion": "7.0.173",
       "ledgerKind": "core",
-      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/WeeklyUpstreamAudit20261114.json",
+      "evidence": "Docs/CoreV6Parity.md; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/WeeklyUpstreamAudit20261114.json; 2026-11-15 delta: Docs/WeeklyUpstreamAudit20261115.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-FDY7I0I/BE6mqa+hoeWwECO5fbnpXl9vYdvm7n5pNjru1mjrBhX1ZQrYOZOtYledTp0c0vCP/eGYPD5P3bLl3Q==",
-      "sourceRef": "npm:ai@7.0.172",
-      "testRef": "8bc7652cdb13fc84722666eb93f45acd0d131eee",
+      "archiveIntegrity": "sha512-dLea37zT1h7cjkUsBprU4Rq35HJqhtHHaq1jTAXjHQoyfpeswpgCrhjZJWdWc10gjEAxmz114py7iLGQ3xIMxw==",
+      "sourceRef": "npm:ai@7.0.173",
+      "testRef": "0e8e0543aeda7d4dd4ce6eade0d5b7d5a43644c1",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
         "DecisionMockModelV4",
@@ -72,7 +72,7 @@
         "VideoModelV3",
         "VideoModelV4"
       ],
-      "contractReview": "2026-11-14: verified published source/declarations and exact matching-release changed tests reviewed separately; native ports, per-file dispositions and retained gaps are recorded in Docs/WeeklyUpstreamAudit20261114.json. Delta review is not full-package or live-service parity."
+      "contractReview": "2026-11-15: published source/declarations and exact matching-release tests reviewed separately. Native delta scenarios, per-file dispositions, unchanged-catalog evidence and explicit remaining gaps are recorded in Docs/WeeklyUpstreamAudit20261115.json. Required checks remain a separate gate; no full-package/live-service parity claim."
     },
     {
       "name": "@ai-sdk/provider",
@@ -149,11 +149,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Porting/map.json",
-      "sha256": "ad549d043a93bc5b76d37187e820f64b1fbdf7a13cb21ec387826a203f43f69a"
+      "sha256": "fdc5b203735fc9f06f67b3b6d1192c1b690d54cc9ea977629f0c134f05680083"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/README.md",
-      "sha256": "d60034540908e2bab416f61741488affddb28a24871c197a4e8c20e28cb2eeba"
+      "sha256": "11c9fb53411c54962cf8a76e5972e3b4d67c498abd344d3d29dc72141967da53"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AI.swift",
@@ -181,19 +181,19 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeBatch.swift",
-      "sha256": "800358abf37175db9752f31b2835c8995590e38ad3e634fbb9898b1ff6b2d307"
+      "sha256": "8757e6f8c49e800cb51707bba3a6ea3264673ae67ed95b4f009c190966fdf002"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeDecision.swift",
-      "sha256": "b23e2a5b5793adc6ebbc2c14565b90aa8114cb0ff782044cbda1469b4d3d74ff"
+      "sha256": "389f7d68e179e2d46e52fa87b70874bc9630f31e2e082bad8f288f07b25127a3"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeEvaluation.swift",
-      "sha256": "787b373c7a881fe3b98eb28b3af65e916f38f31a2570a7b6350eebe1dc1240e2"
+      "sha256": "deb75fe962e541654b77326717ab11df6d57576b746c481bf7a1e879125b072b"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeExtraction.swift",
-      "sha256": "374b07d1b00ce14a7580a83c8c719cef16f676b615b4f39fa700b01d39e3c64f"
+      "sha256": "b6fa165c3c61315595655b32e3cd0dc4135a4e644a533dbf9231d2e1194c41f6"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeGenerateObject.swift",
@@ -241,7 +241,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamText.swift",
-      "sha256": "7cf1465486832c9c061cf2bb14d3baed417ae75af5e635b0fff49b0c7de1b0f8"
+      "sha256": "0f13cff89db35ecba3da58ac9728c77aff233a00d0213d52287c8f64035ad76e"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamTextCompatibility.swift",
@@ -253,7 +253,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamingSpeech.swift",
-      "sha256": "52c389d6852706321c311a428c36ea51b0fe9191e20dd9fd7e1061888d8f6800"
+      "sha256": "862d804739dfc82b138b3d5e63fd7d15de13d05ab8587f9adbb24e6cd64115fe"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIFacadeStreamingTranscription.swift",
@@ -305,7 +305,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITelemetryRuntime.swift",
-      "sha256": "3590d79c87b56f218e558a4f311dc24991f55370f8bcc0ca6d2d0efe5298ade0"
+      "sha256": "6141d65a4987cdc1e8b475c14b5f3f1e883ed7b8486610e81cb552707fd454e2"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AITelemetrySerialization.swift",
@@ -317,7 +317,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/AIToolExecution.swift",
-      "sha256": "b8859237c5a2225c84a336a97d8301c589c3a0bc24d6bac955ca1ee2e77bd6da"
+      "sha256": "1894585ce502e0914d63d16ed4a9dde0dae5dfa3b56bdda78dd49cb714c41de4"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/CoreDecision.swift",
@@ -417,7 +417,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAI/VideoGenerationOperations.swift",
-      "sha256": "ab493ec031eb6ed92cfb6a0ce937f50a18cf7027eefe2038a81802a6d923fa73"
+      "sha256": "12a0321954782986b42bff58cbf19d4fd6895b693e4661b754b58461cfa7ad64"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/BatchResultDownloadSettings.swift",
@@ -505,7 +505,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/CoreVideoRerankingResults.swift",
-      "sha256": "4873818fea66bbb8199efc2f37e3d9420979cbc648ebf5e0f3f426e751c6c96b"
+      "sha256": "479759deaa89286321b9dac2f2595953826e015873741c68bc5377c0597d3854"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Sources/SwiftAIProvider/DecisionBox.swift",
@@ -801,7 +801,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261101CoreTests.swift",
-      "sha256": "16390ae5d62dbcd84d737e0c078e38f284817bcaac4764820032085e10889311"
+      "sha256": "c2bf6200090b041523053fb1dd9cf727e894ab8e93153f62ecc8f8d32e8b7345"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261108CoreSelectorTests.swift",
@@ -825,11 +825,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261114ExtractionTests.swift",
-      "sha256": "a3afd0a2383c7dd4fc09b74267f65590a3e9267c2cfdc15126ae6a8c08f6313e"
+      "sha256": "9b16917f760b5bda17095f70d9cf9bae8727bf3c119bd68a460feebcff1c3225"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261114TelemetryTests.swift",
       "sha256": "7eac58cdec8732777bec903f42d4c12acc7819fcb1aee98b3d32bc66817ca782"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261115ApprovalTests.swift",
+      "sha256": "7d45afd06c0d93c4a230f895f9993f1832cefc09b9e71ff8a1c33cbec0fe2aa3"
     },
     {
       "canonicalPath": "Packages/swift-ai-core/Tests/SwiftAITransportTests/DownloadURLValidationTests.swift",

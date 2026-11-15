@@ -33,7 +33,7 @@ struct Weekly20261114ExtractionTests {
         #expect(result.response.body == ["raw": true])
         let options = try #require(await calls.options.first)
         #expect(options.referenceDate == "2026-11-14")
-        #expect(options.headers.values.contains { $0.contains("ai/7.0.172") })
+        #expect(options.headers.values.contains { $0.contains("ai/7.0.173") })
         #expect(options.providerOptions["mock"] == ["option": true])
     }
 

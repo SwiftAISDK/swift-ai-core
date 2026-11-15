@@ -74,7 +74,21 @@ public struct UploadedVideo: Equatable, Sendable {
     public init(mediaType: String) { self.mediaType = mediaType }
 }
 
+/// A generated video URL with its own media type, including mixed-format results.
+public struct VideoURLDescriptor: Equatable, Sendable {
+    public var url: String
+    public var mediaType: String?
+
+    public init(url: String, mediaType: String? = nil) {
+        self.url = url
+        self.mediaType = mediaType
+    }
+}
+
 public struct VideoGenerationResult: Sendable {
+    /// Per-file URL/media-type associations when supplied by the provider.
+    /// An empty array retains the existing `urls` and common `mediaType` contract.
+    public var videoURLDescriptors: [VideoURLDescriptor] = []
     public var uploadedVideos: [UploadedVideo] = []
     public var urls: [String]
     public var base64Videos: [String]

@@ -26,7 +26,7 @@ extension AI {
         }
         let policy = try prepareRetries(maxRetries: maxRetries)
         let prepared = try await prepareDecisionState(state, abortSignal: abortSignal, download: download)
-        let options = AIExtractionModelV4CallOptions(state: prepared, fields: fields, referenceDate: referenceDate, maxOutputTokens: maxOutputTokens, reasoning: reasoning, abortSignal: abortSignal, headers: withUserAgentSuffix(headers, "ai/7.0.172"), providerOptions: providerOptions)
+        let options = AIExtractionModelV4CallOptions(state: prepared, fields: fields, referenceDate: referenceDate, maxOutputTokens: maxOutputTokens, reasoning: reasoning, abortSignal: abortSignal, headers: withUserAgentSuffix(headers, "ai/7.0.173"), providerOptions: providerOptions)
         let result = try await withRetry(policy: policy, abortSignal: abortSignal) {
             try abortSignal?.throwIfAborted()
             return try await model.doExtract(options)
