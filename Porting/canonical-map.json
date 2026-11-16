@@ -547,12 +547,15 @@
     ],
     "tests": [
       "Packages/swift-ai-core/Tests/SwiftAIProviderTests/CoreContractTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAIProviderTests/ProviderUtilsParityTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderTests/Weekly20261101ModelCapabilitiesTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/AiCoreUtilityUpstreamTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/JSONParsingTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/JSONSchemaTransformationTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/ProviderUtilsHelperParityTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/Weekly20261101ReasoningTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAIProviderUtilitiesTests/Weekly20261108UtilitiesTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAITests/AiCoreParity20261116Tests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITests/AiPartialJSONUpstreamTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261101CoreRepairTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITests/Weekly20261101CoreTests.swift",
@@ -572,6 +575,7 @@
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/HTTPStreamingBackpressureTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/MultipartFormDataTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/ProviderHTTPConfigurationTests.swift",
+      "Packages/swift-ai-core/Tests/SwiftAITransportTests/ProviderUtilsTransportParityTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/RecordingTransport.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/ServerSentEventParserTests.swift",
       "Packages/swift-ai-core/Tests/SwiftAITransportTests/Weekly20261101CredentialTests.swift"

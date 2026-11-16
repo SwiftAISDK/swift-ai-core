@@ -19,25 +19,34 @@ public enum SpeechStreamEnvelope {
     }
 
     public static func parseClientFrame(_ text: String) -> ClientFrame {
-        guard let value = try? secureJSONParse(text), let object = value.objectValue else { return .invalid("malformed JSON or non-object frame") }
+        guard let value = try? secureJSONParse(text) else { return .invalid("malformed JSON") }
+        guard let object = value.objectValue else { return .invalid("frame must be a JSON object") }
         guard let type = value["type"]?.stringValue else { return .invalid("frame type must be a string") }
         switch type {
         case startFrameType:
-            for key in ["instructions", "language", "voice"] where object[key] != nil {
-                guard object[key]?.stringValue != nil else { return .invalid("\(key) must be a string when present") }
+            // Same field order as upstream, so the first reported problem matches.
+            let optionalFields: [(key: String, type: String, isValid: (JSONValue) -> Bool)] = [
+                ("instructions", "string", { $0.stringValue != nil }),
+                ("language", "string", { $0.stringValue != nil }),
+                ("speed", "number", { $0.doubleValue != nil }),
+                ("voice", "string", { $0.stringValue != nil }),
+                ("includeRawChunks", "boolean", { $0.boolValue != nil })
+            ]
+            for field in optionalFields {
+                if let fieldValue = object[field.key], !field.isValid(fieldValue) {
+                    return .invalid("\(field.key) must be a \(field.type) when present")
+                }
             }
-            if let speed = object["speed"], speed.doubleValue == nil { return .invalid("speed must be a number when present") }
-            if let raw = object["includeRawChunks"], raw.boolValue == nil { return .invalid("includeRawChunks must be a boolean when present") }
-            if let format = object["outputFormat"], audioFormat(format) == nil { return .invalid("outputFormat must be an audio format object") }
-            if let options = object["providerOptions"], !validOptions(options) { return .invalid("providerOptions must be an object of provider objects") }
+            if let format = object["outputFormat"], audioFormat(format) == nil { return .invalid("outputFormat must be an audio format object ({ type, rate? }) when present") }
+            if let options = object["providerOptions"], !validOptions(options) { return .invalid("providerOptions must be an object of provider objects when present") }
             let allowed: Set<String> = ["type", "voice", "outputFormat", "instructions", "speed", "language", "providerOptions", "includeRawChunks"]
             var frame = object.filter { allowed.contains($0.key) }
             if let format = frame["outputFormat"]?.objectValue { frame["outputFormat"] = .object(format.filter { $0.key == "type" || $0.key == "rate" }) }
             return .start(.object(frame))
         case textDeltaFrameType:
             guard let delta = object["delta"]?.stringValue else { return .invalid("text-delta frame must have a string delta") }
-            if let voice = object["voice"], voice.stringValue == nil { return .invalid("text-delta voice must be a string") }
-            if let options = object["providerOptions"], !validOptions(options) { return .invalid("providerOptions must be an object of provider objects") }
+            if let voice = object["voice"], voice.stringValue == nil { return .invalid("text-delta voice must be a string when present") }
+            if let options = object["providerOptions"], !validOptions(options) { return .invalid("text-delta providerOptions must be an object of provider objects when present") }
             return .textDelta(SpeechTextPart(text: delta, voice: object["voice"]?.stringValue, providerOptions: object["providerOptions"]?.objectValue ?? [:]))
         case textDoneFrameType: return .textDone
         default: return .unknown

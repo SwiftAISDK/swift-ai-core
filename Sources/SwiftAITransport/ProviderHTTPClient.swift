@@ -56,10 +56,14 @@ public struct AIProviderHTTPClient: Sendable {
         if let dynamicHeaders { providerHeaders.merge(dynamicHeaders()) { _, dynamic in dynamic } }
         if let userAgentSuffix { providerHeaders = withUserAgentSuffix(providerHeaders, userAgentSuffix) }
         var headers = mergingRequestHeaders(requestHeaders, into: providerHeaders)
-        if let contentType {
-            headers["content-type"] = headers["content-type"] ?? contentType
+        // Defaults yield to caller headers in any letter case, as with the
+        // case-insensitive Headers object upstream; never send both spellings.
+        if let contentType, !headers.keys.contains(where: { $0.caseInsensitiveCompare("content-type") == .orderedSame }) {
+            headers["content-type"] = contentType
         }
-        headers["user-agent"] = headers["user-agent"] ?? userAgent(providerID)
+        if !headers.keys.contains(where: { $0.caseInsensitiveCompare("user-agent") == .orderedSame }) {
+            headers["user-agent"] = userAgent(providerID)
+        }
         return AIHTTPRequest(
             method: "POST",
             url: try url(requestModelID ?? modelID, path),

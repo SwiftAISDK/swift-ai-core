@@ -86,7 +86,8 @@ public func isFullMediaType(_ mediaType: String) -> Bool {
 }
 
 public func mediaTypeToExtension(_ mediaType: String) -> String {
-    let subtype = mediaType.lowercased().split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false).dropFirst().first.map(String.init) ?? ""
+    // `split('/')` upstream: the subtype is the second segment, never the rest.
+    let subtype = mediaType.lowercased().split(separator: "/", omittingEmptySubsequences: false).dropFirst().first.map(String.init) ?? ""
     switch subtype {
     case "mpeg": return "mp3"
     case "x-wav": return "wav"

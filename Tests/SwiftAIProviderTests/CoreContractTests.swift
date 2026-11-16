@@ -110,3 +110,33 @@ struct Weekly20261108ModelContractTests {
         #expect(json["decision"]?["questionTypes"]?["box"] == false)
     }
 }
+
+@Test func functionToolInputSchemaDropsOnlySDKMetadata() {
+    let tool: JSONValue = [
+        "type": "object",
+        "properties": ["city": ["type": "string", "description": "City name"]],
+        "required": ["city"],
+        "additionalProperties": false,
+        "description": "Weather lookup",
+        "providerOptions": ["openai": ["flag": true]],
+        "inputExamples": [["input": ["city": "Paris"]]],
+        "strict": true
+    ]
+    #expect(aiFunctionToolInputSchema(tool) == [
+        "type": "object",
+        "properties": ["city": ["type": "string", "description": "City name"]],
+        "required": ["city"],
+        "additionalProperties": false
+    ])
+    #expect(aiFunctionToolDescription(tool) == "Weather lookup")
+    #expect(aiFunctionToolStrict(tool) == true)
+    #expect(aiFunctionToolInputExamples(tool) == [["input": ["city": "Paris"]]])
+    #expect(aiFunctionToolMetadataKeys == ["description", "inputExamples", "providerOptions", "strict"])
+
+    let bare: JSONValue = ["type": "object"]
+    #expect(aiFunctionToolInputSchema(bare) == bare)
+    #expect(aiFunctionToolDescription(bare) == nil)
+    #expect(aiFunctionToolStrict(bare) == nil)
+    #expect(aiFunctionToolInputExamples(bare) == nil)
+    #expect(aiFunctionToolInputSchema(.bool(true)) == .bool(true))
+}

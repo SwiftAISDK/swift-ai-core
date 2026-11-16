@@ -28,12 +28,14 @@ func withRetry<Output: Sendable>(
             errors.append(String(describing: error))
             let attempts = errors.count
             guard policy.maxRetries > 0 else { throw error }
+            // Upstream checks the attempt budget before retryability, so a final
+            // non-retryable failure after exhausting retries is `maxRetriesExceeded`.
+            guard attempts <= policy.maxRetries else {
+                throw AIRetryError(reason: .maxRetriesExceeded, attempts: attempts, errors: errors)
+            }
             guard isRetryable(error) else {
                 if attempts == 1 { throw error }
                 throw AIRetryError(reason: .errorNotRetryable, attempts: attempts, errors: errors)
-            }
-            guard attempts <= policy.maxRetries else {
-                throw AIRetryError(reason: .maxRetriesExceeded, attempts: attempts, errors: errors)
             }
             let sleepDelay = retryDelayNanoseconds(from: error, exponentialBackoffDelay: delay)
             await onRetry(AIRetryAttemptTelemetry(
@@ -529,12 +531,16 @@ func retryHeaderDelayNanoseconds(from error: Error, exponentialBackoffDelay: UIn
     guard let headers = httpHeaders(from: error) else { return nil }
     var delayNanoseconds: UInt64?
 
+    // Upstream lets any numeric `retry-after-ms` value win over `retry-after`,
+    // even when it is out of range and therefore falls back to exponential backoff.
+    var hasRetryAfterMilliseconds = false
     if let retryAfterMs = headerValue("retry-after-ms", in: headers),
-       let parsedDelay = retryAfterDelayNanoseconds(fromMilliseconds: retryAfterMs) {
-        delayNanoseconds = parsedDelay
+       let milliseconds = leadingDecimalNumber(in: retryAfterMs) {
+        hasRetryAfterMilliseconds = true
+        delayNanoseconds = nanoseconds(fromMilliseconds: milliseconds)
     }
 
-    if delayNanoseconds == nil,
+    if !hasRetryAfterMilliseconds,
        let retryAfter = headerValue("retry-after", in: headers) {
         delayNanoseconds = retryAfterDelayNanoseconds(from: retryAfter, now: now)
     }
@@ -572,7 +578,7 @@ func headerValue(_ name: String, in headers: [String: String]) -> String? {
 func retryAfterDelayNanoseconds(from value: String, now: Date) -> UInt64? {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return nil }
-    if let seconds = Double(trimmed) {
+    if let seconds = leadingDecimalNumber(in: trimmed) {
         return nanoseconds(fromSeconds: seconds)
     }
     guard let date = httpDate(from: trimmed) else { return nil }
@@ -583,6 +589,44 @@ func retryAfterDelayNanoseconds(fromMilliseconds value: String) -> UInt64? {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty, let milliseconds = Double(trimmed) else { return nil }
     return nanoseconds(fromMilliseconds: milliseconds)
+}
+
+/// Mirrors JavaScript `parseFloat`: parses the longest leading decimal number and
+/// ignores trailing characters, returning nil when no number prefix exists.
+func leadingDecimalNumber(in value: String) -> Double? {
+    let scalars = Array(value.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars)
+    var index = 0
+    if index < scalars.count, scalars[index] == "+" || scalars[index] == "-" { index += 1 }
+    let signEnd = index
+    if scalars[signEnd...].starts(with: "Infinity".unicodeScalars) {
+        let sign: Double = signEnd > 0 && scalars[0] == "-" ? -1 : 1
+        return sign * .infinity
+    }
+    var sawDigit = false
+    while index < scalars.count, ("0"..."9").contains(scalars[index]) { index += 1; sawDigit = true }
+    if index < scalars.count, scalars[index] == "." {
+        var fractionEnd = index + 1
+        var sawFractionDigit = false
+        while fractionEnd < scalars.count, ("0"..."9").contains(scalars[fractionEnd]) {
+            fractionEnd += 1
+            sawFractionDigit = true
+        }
+        if sawFractionDigit || sawDigit {
+            index = fractionEnd
+            sawDigit = sawDigit || sawFractionDigit
+        }
+    }
+    guard sawDigit else { return nil }
+    if index < scalars.count, scalars[index] == "e" || scalars[index] == "E" {
+        var exponentEnd = index + 1
+        if exponentEnd < scalars.count, scalars[exponentEnd] == "+" || scalars[exponentEnd] == "-" { exponentEnd += 1 }
+        let exponentDigitsStart = exponentEnd
+        while exponentEnd < scalars.count, ("0"..."9").contains(scalars[exponentEnd]) { exponentEnd += 1 }
+        if exponentEnd > exponentDigitsStart { index = exponentEnd }
+    }
+    var text = String.UnicodeScalarView()
+    text.append(contentsOf: scalars[0..<index])
+    return Double(String(text))
 }
 
 func isReasonableRetryDelay(_ delayNanoseconds: UInt64, exponentialBackoffDelay: UInt64) -> Bool {

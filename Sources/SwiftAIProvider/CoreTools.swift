@@ -457,3 +457,43 @@ public enum LanguageStreamPart: Equatable, Sendable {
         providerMetadata: [String: JSONValue] = [:]
     )
 }
+// MARK: - Function tool declarations
+
+/// SDK metadata keys that core stores beside a function tool's input schema
+/// in `LanguageModelRequest.tools`. Upstream providers receive these as
+/// separate tool fields (`description`, `strict`, `inputExamples`,
+/// `providerOptions`), never inside the JSON schema sent as parameters.
+public let aiFunctionToolMetadataKeys: Set<String> = [
+    "description",
+    "inputExamples",
+    "providerOptions",
+    "strict"
+]
+
+/// Returns the input schema of a function tool declaration from
+/// `LanguageModelRequest.tools`, without the SDK metadata keys listed in
+/// ``aiFunctionToolMetadataKeys``. Non-object values are returned unchanged.
+public func aiFunctionToolInputSchema(_ tool: JSONValue) -> JSONValue {
+    guard var object = tool.objectValue else { return tool }
+    for key in aiFunctionToolMetadataKeys {
+        object.removeValue(forKey: key)
+    }
+    return .object(object)
+}
+
+/// The function-level description of a tool declaration, or `nil` when absent
+/// or not a string.
+public func aiFunctionToolDescription(_ tool: JSONValue) -> String? {
+    tool.objectValue?["description"]?.stringValue
+}
+
+/// The function-level `strict` flag of a tool declaration, or `nil` when absent
+/// or not a Boolean.
+public func aiFunctionToolStrict(_ tool: JSONValue) -> Bool? {
+    tool.objectValue?["strict"]?.boolValue
+}
+
+/// The `inputExamples` of a tool declaration, or `nil` when absent or not an array.
+public func aiFunctionToolInputExamples(_ tool: JSONValue) -> [JSONValue]? {
+    tool.objectValue?["inputExamples"]?.arrayValue
+}

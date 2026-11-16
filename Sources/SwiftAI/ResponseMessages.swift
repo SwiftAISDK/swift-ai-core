@@ -24,8 +24,6 @@ public func toResponseMessages(
         switch part {
         case let .text(text, metadata) where text.isEmpty && metadata.isEmpty:
             continue
-        case let .reasoning(text, _) where text.isEmpty:
-            continue
         case let .toolCall(call):
             if toolCallOrderByID[call.id] == nil {
                 toolCallOrderByID[call.id] = toolCallOrderByID.count

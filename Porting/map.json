@@ -547,12 +547,15 @@
     ],
     "tests": [
       "Tests/SwiftAIProviderTests/CoreContractTests.swift",
+      "Tests/SwiftAIProviderTests/ProviderUtilsParityTests.swift",
       "Tests/SwiftAIProviderTests/Weekly20261101ModelCapabilitiesTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/AiCoreUtilityUpstreamTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/JSONParsingTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/JSONSchemaTransformationTests.swift",
+      "Tests/SwiftAIProviderUtilitiesTests/ProviderUtilsHelperParityTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/Weekly20261101ReasoningTests.swift",
       "Tests/SwiftAIProviderUtilitiesTests/Weekly20261108UtilitiesTests.swift",
+      "Tests/SwiftAITests/AiCoreParity20261116Tests.swift",
       "Tests/SwiftAITests/AiPartialJSONUpstreamTests.swift",
       "Tests/SwiftAITests/Weekly20261101CoreRepairTests.swift",
       "Tests/SwiftAITests/Weekly20261101CoreTests.swift",
@@ -572,6 +575,7 @@
       "Tests/SwiftAITransportTests/HTTPStreamingBackpressureTests.swift",
       "Tests/SwiftAITransportTests/MultipartFormDataTests.swift",
       "Tests/SwiftAITransportTests/ProviderHTTPConfigurationTests.swift",
+      "Tests/SwiftAITransportTests/ProviderUtilsTransportParityTests.swift",
       "Tests/SwiftAITransportTests/RecordingTransport.swift",
       "Tests/SwiftAITransportTests/ServerSentEventParserTests.swift",
       "Tests/SwiftAITransportTests/Weekly20261101CredentialTests.swift"

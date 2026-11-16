@@ -1422,13 +1422,24 @@ public func apiCallError(
     )
 }
 
+/// Removes one trailing slash, like provider-utils `withoutTrailingSlash`.
 public func withoutTrailingSlash(_ value: String) -> String {
-    var result = value
-    while result.hasSuffix("/") {
-        result.removeLast()
-    }
-    return result
+    guard value.hasSuffix("/") else { return value }
+    return String(value.dropLast())
 }
+
+/// Rejects an explicitly empty or whitespace-only base URL, like provider-utils
+/// `validateBaseURL`; `nil` passes through so providers can apply defaults.
+@discardableResult
+public func validateBaseURL(_ baseURL: String?) throws -> String? {
+    if let baseURL, baseURL.trimmingCharacters(in: ecmaScriptWhitespace).isEmpty {
+        throw AIError.invalidArgument(argument: "baseURL", message: "baseURL must be a non-empty string.")
+    }
+    return baseURL
+}
+
+/// `String.prototype.trim` whitespace: Unicode white space plus line terminators and BOM.
+private let ecmaScriptWhitespace = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{FEFF}"))
 
 private extension String {
     func strippingTrailingDots() -> String {

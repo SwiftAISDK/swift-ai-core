@@ -4,6 +4,8 @@ import SwiftAITransport
 
 
 public final class JSONImageModel: ImageModel, @unchecked Sendable {
+    /// Generic JSON endpoints receive the full `count`, as before batching existed.
+    public var maxImagesPerCall: Int { Int.max }
     public let providerID: String
     public let modelID: String
     private let config: JSONModelConfiguration
@@ -27,11 +29,11 @@ public final class JSONImageModel: ImageModel, @unchecked Sendable {
 
         let response = try await config.sendJSONResponse(path: path, modelID: modelID, body: .object(body), headers: request.headers, abortSignal: request.abortSignal)
         let raw = response.json
-        let urls = raw["data"]?.arrayValue?.compactMap { $0["url"]?.stringValue }
+        let urls: [String] = raw["data"]?.arrayValue?.compactMap { $0["url"]?.stringValue }
             ?? raw["images"]?.arrayValue?.compactMap { $0["url"]?.stringValue }
             ?? raw["output"]?.arrayValue?.compactMap(\.stringValue)
             ?? []
-        let base64Images = raw["data"]?.arrayValue?.compactMap { $0["b64_json"]?.stringValue }
+        let base64Images: [String] = raw["data"]?.arrayValue?.compactMap { $0["b64_json"]?.stringValue }
             ?? raw["images"]?.arrayValue?.compactMap { $0["b64"]?.stringValue }
             ?? []
         return ImageGenerationResult(
@@ -158,7 +160,7 @@ public final class JSONVideoModel: VideoModel, @unchecked Sendable {
 
         let response = try await config.sendJSONResponse(path: path, modelID: modelID, body: .object(body), headers: request.headers, abortSignal: request.abortSignal)
         let raw = response.json
-        let urls = raw["data"]?.arrayValue?.compactMap { $0["url"]?.stringValue }
+        let urls: [String] = raw["data"]?.arrayValue?.compactMap { $0["url"]?.stringValue }
             ?? raw["videos"]?.arrayValue?.compactMap { $0["url"]?.stringValue }
             ?? raw["output"]?.arrayValue?.compactMap(\.stringValue)
             ?? []

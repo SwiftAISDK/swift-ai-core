@@ -10,9 +10,19 @@ extension AI {
     }
 
     public static func embed(model: any EmbeddingModel, request: EmbeddingRequest, retryPolicy: AIRetryPolicy = .default, telemetry: Telemetry.Options? = nil) async throws -> EmbeddingResult {
+        try await embedSingleCall(
+            model: model,
+            request: request,
+            operationID: request.values.count == 1 ? "ai.embed" : "ai.embedMany",
+            retryPolicy: retryPolicy,
+            telemetry: telemetry
+        )
+    }
+
+    private static func embedSingleCall(model: any EmbeddingModel, request: EmbeddingRequest, operationID: String, retryPolicy: AIRetryPolicy, telemetry: Telemetry.Options?) async throws -> EmbeddingResult {
         try validateEmbeddingDimensions(request.dimensions)
         return try await withTelemetry(
-            operationID: request.values.count == 1 ? "ai.embed" : "ai.embedMany",
+            operationID: operationID,
             providerID: model.providerID,
             modelID: model.modelID,
             input: embeddingRequestTelemetryInput(request),
@@ -107,7 +117,8 @@ extension AI {
             } else {
                 providerOptions
             }
-            return try await embed(model: model, request: EmbeddingRequest(values: values, dimensions: dimensions, providerOptions: transformedOptions, extraBody: extraBody, headers: headers, abortSignal: abortSignal), retryPolicy: retryPolicy, telemetry: telemetry)
+            // Upstream reports every embedMany call as `ai.embedMany`, including one-value batches.
+            return try await embedSingleCall(model: model, request: EmbeddingRequest(values: values, dimensions: dimensions, providerOptions: transformedOptions, extraBody: extraBody, headers: headers, abortSignal: abortSignal), operationID: "ai.embedMany", retryPolicy: retryPolicy, telemetry: telemetry)
         }
 
         return try await withTelemetry(
@@ -157,7 +168,15 @@ extension AI {
                 usage = sumTokenUsage(usage, result.usage)
                 rawValues.append(result.rawValue)
                 warnings.append(contentsOf: result.warnings)
-                providerMetadata.merge(result.providerMetadata) { _, new in new }
+                // Upstream shallow-merges each provider's metadata object across chunks.
+                for (providerName, metadata) in result.providerMetadata {
+                    if case let .object(existing)? = providerMetadata[providerName],
+                       case let .object(incoming) = metadata {
+                        providerMetadata[providerName] = .object(existing.merging(incoming) { _, new in new })
+                    } else {
+                        providerMetadata[providerName] = metadata
+                    }
+                }
                 if requestMetadata.body == nil, result.requestMetadata.body != nil {
                     requestMetadata = result.requestMetadata
                 }
@@ -178,7 +197,17 @@ extension AI {
         }
     }
 
-    public static func generateImage(model: any ImageModel, request: ImageGenerationRequest, retryPolicy: AIRetryPolicy = .default, telemetry: Telemetry.Options? = nil) async throws -> ImageGenerationResult {
+    /// - Parameter maxImagesPerCall: Upstream `maxImagesPerCall`; overrides the
+    ///   model's per-call limit. A `count` above the limit is split into
+    ///   several concurrent calls whose images are returned in call order.
+    public static func generateImage(model: any ImageModel, request: ImageGenerationRequest, maxImagesPerCall: Int? = nil, retryPolicy: AIRetryPolicy = .default, telemetry: Telemetry.Options? = nil) async throws -> ImageGenerationResult {
+        if let maxImagesPerCall, maxImagesPerCall < 1 {
+            throw AIError.invalidArgument(argument: "maxImagesPerCall", message: "maxImagesPerCall must be at least 1.")
+        }
+        let perCall = max(1, maxImagesPerCall ?? model.maxImagesPerCall)
+        if let count = request.count, count > perCall {
+            return try await generateImageInBatches(model: model, request: request, count: count, perCall: perCall, retryPolicy: retryPolicy, telemetry: telemetry)
+        }
         let attempts = ImageGenerationAttemptAccumulator()
         do {
             return try await withTelemetry(
@@ -229,8 +258,121 @@ extension AI {
         }
     }
 
-    public static func generateImage(model: any ImageModel, prompt: String, size: String? = nil, aspectRatio: String? = nil, seed: Int? = nil, count: Int? = nil, files: [ImageInputFile] = [], mask: ImageInputFile? = nil, providerOptions: [String: JSONValue] = [:], extraBody: [String: JSONValue] = [:], headers: [String: String] = [:], abortSignal: AIAbortSignal? = nil, retryPolicy: AIRetryPolicy = .default, telemetry: Telemetry.Options? = nil) async throws -> ImageGenerationResult {
-        try await generateImage(model: model, request: ImageGenerationRequest(prompt: prompt, size: size, aspectRatio: aspectRatio, seed: seed, count: count, files: files, mask: mask, providerOptions: providerOptions, extraBody: extraBody, headers: headers, abortSignal: abortSignal), retryPolicy: retryPolicy, telemetry: telemetry)
+    public static func generateImage(model: any ImageModel, prompt: String, size: String? = nil, aspectRatio: String? = nil, seed: Int? = nil, count: Int? = nil, maxImagesPerCall: Int? = nil, files: [ImageInputFile] = [], mask: ImageInputFile? = nil, providerOptions: [String: JSONValue] = [:], extraBody: [String: JSONValue] = [:], headers: [String: String] = [:], abortSignal: AIAbortSignal? = nil, retryPolicy: AIRetryPolicy = .default, telemetry: Telemetry.Options? = nil) async throws -> ImageGenerationResult {
+        try await generateImage(model: model, request: ImageGenerationRequest(prompt: prompt, size: size, aspectRatio: aspectRatio, seed: seed, count: count, files: files, mask: mask, providerOptions: providerOptions, extraBody: extraBody, headers: headers, abortSignal: abortSignal), maxImagesPerCall: maxImagesPerCall, retryPolicy: retryPolicy, telemetry: telemetry)
+    }
+
+    /// Upstream `generateImage` call splitting: `ceil(count / perCall)` calls run
+    /// concurrently, each with its own retries. A call that stays empty after its
+    /// retries contributes no images; the request fails only when every call is empty.
+    private static func generateImageInBatches(model: any ImageModel, request: ImageGenerationRequest, count: Int, perCall: Int, retryPolicy: AIRetryPolicy, telemetry: Telemetry.Options?) async throws -> ImageGenerationResult {
+        try validateRetryPolicy(retryPolicy)
+        let callCount = (count + perCall - 1) / perCall
+        let counts = (0..<callCount).map { index -> Int in
+            guard index == callCount - 1 else { return perCall }
+            let remainder = count % perCall
+            return remainder == 0 ? perCall : remainder
+        }
+        return try await withTelemetry(
+            operationID: "ai.generateImage",
+            providerID: model.providerID,
+            modelID: model.modelID,
+            input: imageRequestTelemetryInput(request),
+            telemetry: telemetry,
+            retryPolicy: AIRetryPolicy(maxRetries: 0, initialDelayNanoseconds: 0),
+            abortSignal: request.abortSignal,
+            output: imageTelemetryOutput,
+            usage: { $0.usage },
+            warnings: { $0.warnings },
+            providerMetadata: { $0.providerMetadata },
+            responseMetadata: { $0.responseMetadata }
+        ) {
+            let groups = try await withThrowingTaskGroup(of: (Int, [ImageGenerationResult]).self) { group in
+                for (index, callImageCount) in counts.enumerated() {
+                    var callRequest = request
+                    callRequest.count = callImageCount
+                    group.addTask {
+                        (index, try await imageCallAttempts(model: model, request: callRequest, retryPolicy: retryPolicy))
+                    }
+                }
+                var collected: [(Int, [ImageGenerationResult])] = []
+                for try await item in group { collected.append(item) }
+                return collected.sorted { $0.0 < $1.0 }.map(\.1)
+            }
+            let merged = mergeImageCallResults(groups.flatMap { $0 })
+            guard !merged.urls.isEmpty || !merged.base64Images.isEmpty else {
+                throw AINoOutputError(
+                    provider: model.providerID,
+                    kind: .image,
+                    responses: merged.calls.map(\.responseMetadata),
+                    calls: merged.calls
+                )
+            }
+            return merged
+        }
+    }
+
+    /// Every attempt of one image call, including empty attempts, like upstream `callResults`.
+    private static func imageCallAttempts(model: any ImageModel, request: ImageGenerationRequest, retryPolicy: AIRetryPolicy) async throws -> [ImageGenerationResult] {
+        let attempts = ImageCallAttemptLog()
+        do {
+            _ = try await withRetry(policy: retryPolicy, abortSignal: request.abortSignal) {
+                attempts.beginAttempt()
+                var result = try await model.generateImage(request)
+                if result.requestMetadata == AIRequestMetadata() {
+                    result.requestMetadata = imageGenerationRequestMetadata(request)
+                }
+                if result.calls.isEmpty {
+                    result.calls = [ImageGenerationCall(
+                        urls: result.urls,
+                        base64Images: result.base64Images,
+                        warnings: result.warnings,
+                        usage: result.usage,
+                        providerMetadata: result.providerMetadata,
+                        responseMetadata: result.responseMetadata
+                    )]
+                }
+                attempts.append(result)
+                if result.urls.isEmpty && result.base64Images.isEmpty && result.isRetryable != false {
+                    throw AIRetryableEmptyImageResultError()
+                }
+                return true
+            }
+        } catch {
+            // Upstream returns the collected results when retries end on an empty result.
+            guard attempts.lastWasEmpty else { throw error }
+        }
+        return attempts.results
+    }
+
+    private static func mergeImageCallResults(_ results: [ImageGenerationResult]) -> ImageGenerationResult {
+        var merged = ImageGenerationResult(
+            urls: results.flatMap(\.urls),
+            base64Images: results.flatMap(\.base64Images),
+            rawValue: .array(results.map(\.rawValue)),
+            warnings: results.flatMap(\.warnings),
+            usage: results.reduce(nil as TokenUsage?) { sumTokenUsage($0, $1.usage) },
+            requestMetadata: results.first?.requestMetadata ?? AIRequestMetadata(),
+            responseMetadata: results.last?.responseMetadata ?? AIResponseMetadata(),
+            isRetryable: nil,
+            calls: results.flatMap(\.calls)
+        )
+        // Upstream appends each call's `providerMetadata.<provider>.images`.
+        var metadata: [String: JSONValue] = [:]
+        for result in results {
+            for (provider, value) in result.providerMetadata {
+                guard var current = metadata[provider]?.objectValue, let incoming = value.objectValue else {
+                    metadata[provider] = value
+                    continue
+                }
+                let images = (current["images"]?.arrayValue ?? []) + (incoming["images"]?.arrayValue ?? [])
+                current.merge(incoming) { _, new in new }
+                if current["images"] != nil || incoming["images"] != nil { current["images"] = .array(images) }
+                metadata[provider] = .object(current)
+            }
+        }
+        merged.providerMetadata = metadata
+        return merged
     }
 
     public static func transcribe(model: any TranscriptionModel, request: AudioTranscriptionRequest, retryPolicy: AIRetryPolicy = .default, telemetry: Telemetry.Options? = nil) async throws -> TranscriptionResult {
@@ -430,16 +572,31 @@ extension AI {
             providerMetadata: { $0.providerMetadata },
             responseMetadata: { $0.responseMetadata }
         ) {
+            // Upstream returns an empty ranking without calling the model for empty documents.
+            if request.documentsJSON.isEmpty {
+                return RerankingResult(
+                    results: [],
+                    rawValue: .null,
+                    responseMetadata: AIResponseMetadata(timestamp: Date(), modelID: model.modelID)
+                )
+            }
             var result = try await model.rerank(request)
             let upperBound = request.documentsJSON.count
             if let invalid = result.results.first(where: { $0.index < 0 || $0.index >= upperBound }) {
                 throw AIError.invalidResponse(
                     provider: model.providerID,
-                    message: "Invalid ranking index \(invalid.index). Expected an integer between 0 and \(max(upperBound - 1, 0))."
+                    message: "Invalid ranking index \(invalid.index). Expected an integer between 0 and \(upperBound - 1)."
                 )
             }
             if result.requestMetadata == AIRequestMetadata() {
                 result.requestMetadata = AIRequestMetadata(body: rerankingRequestMetadataBody(request), headers: request.headers)
+            }
+            // Upstream defaults the response timestamp and model id when the provider omits them.
+            if result.responseMetadata.timestamp == nil {
+                result.responseMetadata.timestamp = Date()
+            }
+            if result.responseMetadata.modelID == nil {
+                result.responseMetadata.modelID = model.modelID
             }
             return result
         }
@@ -619,6 +776,28 @@ struct AIRetryableEmptyImageResultError: Error, CustomStringConvertible, Sendabl
 
 struct AITerminalEmptyImageResultError: Error, CustomStringConvertible, Sendable {
     var description: String { "Image model returned no images (not retryable)." }
+}
+
+private final class ImageCallAttemptLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [ImageGenerationResult] = []
+    private var storedLastWasEmpty = false
+
+    var results: [ImageGenerationResult] { lock.withLock { stored } }
+    /// True only when the most recent attempt ended with an empty result
+    /// rather than an error.
+    var lastWasEmpty: Bool { lock.withLock { storedLastWasEmpty } }
+
+    func beginAttempt() {
+        lock.withLock { storedLastWasEmpty = false }
+    }
+
+    func append(_ result: ImageGenerationResult) {
+        lock.withLock {
+            stored.append(result)
+            storedLastWasEmpty = result.urls.isEmpty && result.base64Images.isEmpty
+        }
+    }
 }
 
 private final class ImageGenerationAttemptAccumulator: @unchecked Sendable {

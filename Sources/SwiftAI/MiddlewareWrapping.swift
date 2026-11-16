@@ -239,6 +239,10 @@ final class AIWrappedImageModel: ImageModel, @unchecked Sendable {
         }
     }
 
+    var maxImagesPerCall: Int {
+        middleware.overrideMaxImagesPerCall?(model) ?? model.maxImagesPerCall
+    }
+
     init(
         model: any ImageModel,
         middleware: AIImageModelMiddleware,

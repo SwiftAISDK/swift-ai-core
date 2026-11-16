@@ -5,13 +5,6 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 
 
-private let functionToolMetadataKeys: Set<String> = [
-    "description",
-    "inputExamples",
-    "providerOptions",
-    "strict"
-]
-
 func prepareTools(
     tools: [String: JSONValue]?,
     toolOrder: [String]? = nil
@@ -32,7 +25,7 @@ func prepareTools(
         var output: [String: JSONValue] = [
             "type": .string("function"),
             "name": .string(name),
-            "inputSchema": inputSchemaWithoutToolMetadata(tool)
+            "inputSchema": aiFunctionToolInputSchema(tool)
         ]
         if let description = object?["description"] {
             output["description"] = description
@@ -557,12 +550,4 @@ private func orderedToolEntries(
         .map { ($0.key, $0.value) }
 
     return ordered + unordered
-}
-
-private func inputSchemaWithoutToolMetadata(_ tool: JSONValue) -> JSONValue {
-    guard var object = tool.objectValue else { return tool }
-    for key in functionToolMetadataKeys {
-        object.removeValue(forKey: key)
-    }
-    return .object(object)
 }

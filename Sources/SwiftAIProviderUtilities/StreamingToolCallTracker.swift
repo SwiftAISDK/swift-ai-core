@@ -47,7 +47,7 @@ public struct AIStreamingToolCallTracker: Sendable {
     private var nextGeneratedIDSuffixes: [String: Int] = [:]
 
     public init(
-        generateID: @escaping @Sendable () -> String = { UUID().uuidString },
+        generateID: @escaping @Sendable () -> String = { generateId() },
         typeValidation: AIStreamingToolCallTypeValidation = .none,
         extractMetadata: (@Sendable (AIStreamingToolCallDelta) -> [String: JSONValue]?)? = nil,
         buildToolCallProviderMetadata: (@Sendable ([String: JSONValue]?) -> [String: JSONValue]?)? = nil
@@ -61,8 +61,8 @@ public struct AIStreamingToolCallTracker: Sendable {
     public mutating func processDelta(_ delta: AIStreamingToolCallDelta) throws -> [LanguageStreamPart] {
         let wireID = nonBlank(delta.id)
         let name = nonBlank(delta.functionName)
-        let hasExplicitStart = name != nil && delta.arguments?.first(where: { !$0.isWhitespace }).map { $0 == "{" || $0 == "[" } == true
-        let hasEmptyArguments = delta.arguments?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+        let hasExplicitStart = name != nil && startsWithStructuredValue(delta.arguments)
+        let hasEmptyArguments = delta.arguments.map(isECMAScriptBlank) ?? true
         let resolution = resolve(wireID: wireID, index: delta.index, name: name, hasExplicitStart: hasExplicitStart, hasEmptyArguments: hasEmptyArguments)
         let resolvedPosition: Int
         let parts: [LanguageStreamPart]
@@ -137,7 +137,7 @@ public struct AIStreamingToolCallTracker: Sendable {
     }
 
     private func nonBlank(_ value: String?) -> String? {
-        guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard let value, !isECMAScriptBlank(value) else { return nil }
         return value
     }
 
@@ -253,19 +253,21 @@ private struct TrackedStreamingToolCall: Sendable {
 
 /// Structural completeness is only correlation evidence. Calls still finish on
 /// flush because even parsable JSON may be followed by more argument text.
+/// Scans Unicode scalars like upstream's code-point iteration, so a combining
+/// mark after a quote or bracket cannot hide the structural character.
 private struct StreamingToolArgumentState: Sendable {
     var complete = false
     private var started = false
     private var invalid = false
-    private var stack: [Character] = []
+    private var stack: [Unicode.Scalar] = []
     private var inString = false
     private var escaped = false
 
     mutating func append(_ delta: String) {
-        for character in delta {
+        for character in delta.unicodeScalars {
             if invalid || complete { continue }
             if !started {
-                if character.isWhitespace { continue }
+                if isECMAScriptWhitespace(character) { continue }
                 guard character == "{" || character == "[" else { invalid = true; continue }
                 started = true
                 stack.append(character)
@@ -283,5 +285,24 @@ private struct StreamingToolArgumentState: Sendable {
                 complete = stack.isEmpty
             }
         }
+    }
+}
+
+private func startsWithStructuredValue(_ value: String?) -> Bool {
+    guard let first = value?.unicodeScalars.first(where: { !isECMAScriptWhitespace($0) }) else { return false }
+    return first == "{" || first == "["
+}
+
+private func isECMAScriptBlank(_ value: String) -> Bool {
+    value.unicodeScalars.allSatisfy(isECMAScriptWhitespace)
+}
+
+/// JavaScript `\s` / `String.prototype.trim` whitespace.
+private func isECMAScriptWhitespace(_ scalar: Unicode.Scalar) -> Bool {
+    switch scalar.value {
+    case 0x09...0x0D, 0x20, 0xA0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF:
+        return true
+    default:
+        return false
     }
 }

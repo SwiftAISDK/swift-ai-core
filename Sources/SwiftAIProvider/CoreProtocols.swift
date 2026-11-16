@@ -23,17 +23,25 @@ public func isURLSupported(
 
     return supportedURLs.contains { key, patterns in
         let lowercasedKey = key.lowercased()
-        let mediaTypePrefix = (lowercasedKey == "*" || lowercasedKey == "*/*")
-            ? ""
-            : lowercasedKey.replacingOccurrences(of: "*", with: "")
+        // Upstream removes only the first `*` (`key.replace(/\*/, '')`).
+        var mediaTypePrefix = lowercasedKey
+        if lowercasedKey == "*" || lowercasedKey == "*/*" {
+            mediaTypePrefix = ""
+        } else if let wildcard = mediaTypePrefix.firstIndex(of: "*") {
+            mediaTypePrefix.remove(at: wildcard)
+        }
 
         let mediaTypeMatches: Bool
         if mediaTypePrefix.isEmpty {
             mediaTypeMatches = true
         } else if isTopLevelOnly {
             mediaTypeMatches = "\(lowercasedMediaType)/" == mediaTypePrefix
-        } else {
+        } else if mediaTypePrefix.hasSuffix("/") {
             mediaTypeMatches = lowercasedMediaType.hasPrefix(mediaTypePrefix)
+        } else {
+            // A full `type/subtype` key matches only that exact media type, so
+            // `image/png` does not cover `image/png+invalid` or `image/png;x`.
+            mediaTypeMatches = lowercasedMediaType == mediaTypePrefix
         }
 
         return mediaTypeMatches && patterns.contains { $0.test(url) }
@@ -154,12 +162,17 @@ public protocol ImageModel: Sendable {
     var supportsFileInputs: Bool? { get async }
     /// Whether the model accepts an editing mask; nil means unknown.
     var supportsMaskInputs: Bool? { get async }
+    /// Upstream `ImageModelV4.maxImagesPerCall`: the largest `count` one call
+    /// accepts. `AI.generateImage` splits larger requests into several calls.
+    var maxImagesPerCall: Int { get }
     func generateImage(_ request: ImageGenerationRequest) async throws -> ImageGenerationResult
 }
 
 public extension ImageModel {
     var supportsFileInputs: Bool? { nil }
     var supportsMaskInputs: Bool? { nil }
+    /// Upstream `generateImage` uses one image per call when a model sets no limit.
+    var maxImagesPerCall: Int { 1 }
 }
 
 

@@ -110,6 +110,8 @@ public struct AIImageModelGenerateContext: Sendable {
 public struct AIImageModelMiddleware: Sendable {
     public var overrideSupportsFileInputs: (@Sendable (_ model: any ImageModel) async -> Bool?)? = nil
     public var overrideSupportsMaskInputs: (@Sendable (_ model: any ImageModel) async -> Bool?)? = nil
+    /// Upstream `overrideMaxImagesPerCall`.
+    public var overrideMaxImagesPerCall: (@Sendable (_ model: any ImageModel) -> Int)? = nil
     public var overrideProviderID: (@Sendable (_ model: any ImageModel) -> String)?
     public var overrideModelID: (@Sendable (_ model: any ImageModel) -> String)?
     public var transformRequest: (@Sendable (AIImageModelTransformContext) async throws -> ImageGenerationRequest)?

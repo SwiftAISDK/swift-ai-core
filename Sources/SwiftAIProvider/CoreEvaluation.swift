@@ -148,7 +148,7 @@ public extension AIEvaluationModelV4CallOptions {
         self.stateParts = stateParts
     }
 
-    public var decisionOptions: AIDecisionModelV4CallOptions {
+    var decisionOptions: AIDecisionModelV4CallOptions {
         AIDecisionModelV4CallOptions(state: stateParts ?? legacyEvaluationState(state), questions: questions, abortSignal: abortSignal, headers: headers, providerOptions: providerOptions)
     }
 }
