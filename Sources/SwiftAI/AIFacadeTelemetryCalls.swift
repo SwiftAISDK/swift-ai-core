@@ -23,13 +23,17 @@ func withTelemetry<Output: Sendable>(
     wrapLanguageModelCall: Bool = false,
     logEmptyWarnings: Bool = true,
     stepError: (@Sendable (any Error) async -> Void)? = nil,
+    isSteeringInterrupted: @Sendable () -> Bool = { false },
     operation: @escaping @Sendable () async throws -> Output
 ) async throws -> Output {
     let dispatcher = TelemetryDispatcher(options: telemetry, redactor: redactor)
     guard dispatcher.isEnabled else {
         let result: Output
         do { result = try await withRetry(policy: retryPolicy, abortSignal: abortSignal, operation: operation) }
-        catch { await stepError?(error); throw error }
+        catch {
+            if !isSteeringInterrupted() { await stepError?(error) }
+            throw error
+        }
         let resultWarnings = warnings(result)
         if logEmptyWarnings || !resultWarnings.isEmpty {
             await AIWarningLogging.logWarnings(resultWarnings, providerID: providerID, modelID: modelID)
@@ -103,9 +107,10 @@ func withTelemetry<Output: Sendable>(
         }
         return result
     } catch {
+        if isSteeringInterrupted() { throw error }
         await stepError?(error)
         if operationID == "ai.generateText" {
-            await dispatcher.record(telemetryEvent(kind: .stepError, callID: callID, operationID: operationID + ".step", providerID: providerID, modelID: modelID, options: telemetry, input: ["stepNumber": .number(Double(AITelemetryStepContext.stepNumber))], errorDescription: String(describing: error)))
+            await dispatcher.record(telemetryEvent(kind: .stepError, callID: callID, operationID: operationID + ".step", providerID: providerID, modelID: modelID, options: telemetry, input: ["stepNumber": .number(Double(AITelemetryStepContext.stepNumber))], errorDescription: telemetryErrorDescription(error)))
         }
         let eventKind: Telemetry.Event.Kind = isCancellationTelemetryError(error) || abortSignal?.isAborted == true ? .abort : .error
         await dispatcher.record(telemetryEvent(
@@ -117,7 +122,7 @@ func withTelemetry<Output: Sendable>(
             options: telemetry,
             maxRetries: retryPolicy.maxRetries,
             durationNanoseconds: DispatchTime.now().uptimeNanoseconds - started,
-            errorDescription: String(describing: error)
+            errorDescription: telemetryErrorDescription(error)
         ))
         throw error
     }

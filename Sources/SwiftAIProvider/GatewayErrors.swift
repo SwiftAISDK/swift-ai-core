@@ -53,6 +53,9 @@ public struct GatewayError: Error, Equatable, Sendable, CustomStringConvertible 
     }
 
     public var name: String {
+        if isAccessPolicyDenied {
+            return "GatewayAccessPolicyDeniedError"
+        }
         if isNotFound {
             return "GatewayNotFoundError"
         }
@@ -93,6 +96,36 @@ public struct GatewayError: Error, Equatable, Sendable, CustomStringConvertible 
     /// Whether Gateway returned its generic `not_found` discriminator.
     public var isNotFound: Bool {
         upstreamType == "not_found"
+    }
+
+    /// Whether a Gateway access policy denied the requested model or provider.
+    public var isAccessPolicyDenied: Bool {
+        type == .forbidden && upstreamType == "access_policy_denied"
+    }
+
+    /// IDs of the policies that apply to the denial, when provided by Gateway.
+    public var policyIDs: [String]? { accessPolicyDetails["policyIds"] }
+
+    /// Models omitted by the policies, when provided by Gateway.
+    public var removedModels: [String]? { accessPolicyDetails["removedModels"] }
+
+    /// Providers omitted by the policies, when provided by Gateway.
+    public var removedProviders: [String]? { accessPolicyDetails["removedProviders"] }
+
+    private var accessPolicyDetails: [String: [String]] {
+        guard isAccessPolicyDenied,
+              let parameters = (response?["error"]?["param"] ?? response?["param"])?.objectValue else {
+            return [:]
+        }
+        var result: [String: [String]] = [:]
+        for key in ["policyIds", "removedModels", "removedProviders"] {
+            guard let field = parameters[key] else { continue }
+            guard let items = field.arrayValue else { return [:] }
+            let strings = items.compactMap(\.stringValue)
+            guard strings.count == items.count else { return [:] }
+            result[key] = strings
+        }
+        return result
     }
 
     public var description: String {

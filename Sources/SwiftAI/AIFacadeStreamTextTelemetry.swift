@@ -24,7 +24,8 @@ func streamTextWithTelemetry(
     onStepError: (@Sendable (any Error) async -> Void)? = nil,
     onError: (@Sendable (any Error) async -> Void)? = nil,
     onAbort: (@Sendable ((any Error)?) async -> Void)? = nil,
-    reportsStepErrors: Bool = true
+    reportsStepErrors: Bool = true,
+    wrapLanguageModelCall: Bool = true
 ) -> AsyncThrowingStream<LanguageStreamPart, Error> {
     publicLanguageStream(
         streamTextWithTelemetryParts(
@@ -42,7 +43,8 @@ func streamTextWithTelemetry(
             onStepError: onStepError,
             onError: onError,
             onAbort: onAbort,
-            reportsStepErrors: reportsStepErrors
+            reportsStepErrors: reportsStepErrors,
+            wrapLanguageModelCall: wrapLanguageModelCall
         )
     )
 }
@@ -62,9 +64,13 @@ func streamTextWithTelemetryParts(
     onStepError: (@Sendable (any Error) async -> Void)? = nil,
     onError: (@Sendable (any Error) async -> Void)? = nil,
     onAbort: (@Sendable ((any Error)?) async -> Void)? = nil,
-    reportsStepErrors: Bool = true
+    reportsStepErrors: Bool = true,
+    wrapLanguageModelCall: Bool = true,
+    steeringAttempt: AISteeringModelAttempt? = nil,
+    modelCallTelemetry: Telemetry.Options? = nil
 ) -> AsyncThrowingStream<StreamTextTelemetryPart, Error> {
     let dispatcher = TelemetryDispatcher(options: telemetry, redactor: redactor)
+    let modelCallDispatcher = TelemetryDispatcher(options: wrapLanguageModelCall ? modelCallTelemetry ?? telemetry : nil, redactor: redactor)
     let callID = UUID().uuidString
     let started = DispatchTime.now().uptimeNanoseconds
     let terminalState = AIStreamTerminalState()
@@ -105,13 +111,15 @@ func streamTextWithTelemetryParts(
                     var isBufferingAttemptParts = false
                     var openTextPartIDs: Set<String> = []
                     var openReasoningPartIDs: Set<String> = []
+                    var providerExecutedToolCallIDs: Set<String> = []
                     var retryFailure: Error?
                     var streamEndedWithoutOutput = false
                     var receivedSemanticOutput = false
                     var receivedTerminalPart = false
                     do {
+                        try steeringAttempt?.checkForInterrupt()
                         hasStartedStep = true
-                        let stream = try await dispatcher.executeLanguageModelCall(
+                        let stream = try await modelCallDispatcher.executeLanguageModelCall(
                             callID: callID,
                             operationID: operationID,
                             providerID: providerID,
@@ -120,11 +128,18 @@ func streamTextWithTelemetryParts(
                         )
                         for try await part in stream {
                             try Task.checkCancellation()
+                            try steeringAttempt?.checkForInterrupt()
                             receivedPart = true
                             let outgoingPart: LanguageStreamPart
                             switch part {
                             case let .requestMetadata(metadata):
                                 outgoingPart = .requestMetadata(sanitizedRequestMetadata(metadata))
+                            case let .toolCall(call) where call.providerExecuted:
+                                providerExecutedToolCallIDs.insert(call.id)
+                                outgoingPart = part
+                            case var .toolResult(result) where providerExecutedToolCallIDs.contains(result.toolCallID):
+                                result.providerExecuted = true
+                                outgoingPart = .toolResult(result)
                             case let .finish(reason, usage) where reason == nil && attemptStep.hasUnterminatedInBandError:
                                 outgoingPart = .finish(reason: "error", usage: usage)
                             case let .finishMetadata(reason, usage, metadata) where reason == nil && attemptStep.hasUnterminatedInBandError:
@@ -141,6 +156,11 @@ func streamTextWithTelemetryParts(
                                streamRetryCount < streamRetries {
                                 retryFailure = providerError
                                 break
+                            }
+
+                            if let steeringAttempt, outgoingPart.closesSteeringInterruptWindow {
+                                steeringAttempt.closeWindow()
+                                try steeringAttempt.checkForInterrupt()
                             }
 
                             if let providerError = outgoingPart.streamProviderError {
@@ -203,6 +223,9 @@ func streamTextWithTelemetryParts(
                             continuation.yield(.retryAttemptBoundary)
                             continue
                         }
+
+                        steeringAttempt?.closeWindow()
+                        try steeringAttempt?.checkForInterrupt()
 
                         if !receivedTerminalPart && !receivedSemanticOutput {
                             streamEndedWithoutOutput = true
@@ -270,9 +293,19 @@ func streamTextWithTelemetryParts(
                         }
                         continuation.finish()
                         return
-                    } catch is CancellationError {
-                        throw AIRetryError(reason: .cancelled, attempts: errors.count + 1, errors: errors)
                     } catch {
+                        if steeringAttempt?.isInterrupted == true, !isTextStreamTimeout(error) {
+                            for id in openTextPartIDs.sorted() {
+                                continuation.yield(.part(.textEnd(id: id)))
+                            }
+                            for id in openReasoningPartIDs.sorted() {
+                                continuation.yield(.part(.reasoningEnd(id: id)))
+                            }
+                            throw AISteeringInterruptedAttempt()
+                        }
+                        if error is CancellationError {
+                            throw AIRetryError(reason: .cancelled, attempts: errors.count + 1, errors: errors)
+                        }
                         if streamEndedWithoutOutput {
                             throw error
                         }
@@ -310,6 +343,11 @@ func streamTextWithTelemetryParts(
                     }
                 }
             } catch {
+                steeringAttempt?.closeWindow()
+                if steeringAttempt?.isInterrupted == true, !isTextStreamTimeout(error) {
+                    continuation.finish(throwing: AISteeringInterruptedAttempt())
+                    return
+                }
                 if isCausedByAbort(error) || abortSignal?.isAborted == true {
                     let abortDescription = abortSignal.flatMap { signal in
                         signal.isAborted ? signal.reason : nil
@@ -446,6 +484,15 @@ private func isStreamRetrySemanticOutput(_ part: LanguageStreamPart) -> Bool {
 }
 
 private extension LanguageStreamPart {
+    var closesSteeringInterruptWindow: Bool {
+        switch self {
+        case .toolInputStart, .toolInputStartText, .toolCallDelta:
+            return true
+        default:
+            return isStreamRetryTerminalPart || isStreamRetrySemanticOutput(self)
+        }
+    }
+
     var isStreamRetryTerminalPart: Bool {
         switch self {
         case .finish, .finishMetadata, .error:

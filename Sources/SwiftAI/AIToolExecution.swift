@@ -268,7 +268,7 @@ private func validatedToolContext(for tool: AITool, toolCall: AIToolCall, reques
 
 func executeToolCalls(
     _ calls: [AIToolCall], toolsByName: [String: AITool], request: LanguageModelRequest,
-    toolApproval: AIToolApproval?, repairToolCall: AIToolCallRepair? = nil,
+    toolApproval: AIToolApproval?, toolApprovalSecret: String? = nil, repairToolCall: AIToolCallRepair? = nil,
     telemetry: AIToolLoopTelemetryContext? = nil, stepIndex: Int = 0,
     convertToolErrorsToResults: Bool = false, invokeInputAvailableCallbacks: Bool = true,
     validatedInputs: [String: JSONValue] = [:]
@@ -276,6 +276,7 @@ func executeToolCalls(
     let batches = try await mapToolCallsWithConcurrency(calls, concurrency: request.toolCallConcurrency, abortSignal: request.abortSignal) { call in
         try await executeToolCallsSequentially(
             [call], toolsByName: toolsByName, request: request, toolApproval: toolApproval,
+            toolApprovalSecret: toolApprovalSecret,
             repairToolCall: repairToolCall, telemetry: telemetry, stepIndex: stepIndex,
             convertToolErrorsToResults: convertToolErrorsToResults,
             invokeInputAvailableCallbacks: invokeInputAvailableCallbacks,
@@ -297,6 +298,7 @@ private func executeToolCallsSequentially(
     toolsByName: [String: AITool],
     request: LanguageModelRequest,
     toolApproval: AIToolApproval?,
+    toolApprovalSecret: String? = nil,
     repairToolCall: AIToolCallRepair? = nil,
     telemetry: AIToolLoopTelemetryContext? = nil,
     stepIndex: Int = 0,
@@ -347,6 +349,18 @@ private func executeToolCallsSequentially(
             )
             let approvalStatus = approvalDecision.status
             let approvalID = "approval-\(parsedCall.id)"
+            var approvalMetadata = parsedCall.providerMetadata
+            switch approvalStatus {
+            case .denied:
+                approvalMetadata.removeValue(forKey: "signature")
+            case .approved, .userApproval:
+                if let signature = maybeSignApproval(secret: toolApprovalSecret, approvalID: approvalID,
+                    toolCallID: parsedCall.id, toolName: parsedCall.name, input: refinedArguments) {
+                    approvalMetadata["signature"] = .string(signature)
+                }
+            case .notApplicable:
+                break
+            }
             var approvalRequest: AIToolApprovalRequest?
             var approvalResponse: AIToolApprovalResponse?
             switch approvalStatus {
@@ -360,7 +374,7 @@ private func executeToolCallsSequentially(
                     toolCallID: parsedCall.id,
                     inputSchemaInput: inputSchemaInput,
                     isAutomatic: true,
-                    providerMetadata: parsedCall.providerMetadata
+                    providerMetadata: approvalMetadata
                 )
                 approvalResponse = AIToolApprovalResponse(
                     id: approvalID,
@@ -379,7 +393,7 @@ private func executeToolCallsSequentially(
                     toolCallID: parsedCall.id,
                     inputSchemaInput: inputSchemaInput,
                     isAutomatic: true,
-                    providerMetadata: parsedCall.providerMetadata
+                    providerMetadata: approvalMetadata
                 )
                 approvalResponse = AIToolApprovalResponse(
                     id: approvalID,
@@ -417,7 +431,7 @@ private func executeToolCallsSequentially(
                     toolCallID: parsedCall.id,
                     inputSchemaInput: inputSchemaInput,
                     reason: approvalDecision.userApprovalReason,
-                    providerMetadata: parsedCall.providerMetadata
+                    providerMetadata: approvalMetadata
                 )
                 batch.approvalRequests.append(approvalRequest!)
                 batch.needsUserApproval = true

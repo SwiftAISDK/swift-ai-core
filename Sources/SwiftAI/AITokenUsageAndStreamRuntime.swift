@@ -97,6 +97,7 @@ struct LanguageStreamToolStep {
             toolCalls.append(toolCall)
             orderedContent.append(.toolCall(toolCall))
         case let .toolResult(toolResult):
+            guard !toolResult.preliminary else { break }
             streamedToolResults.append(toolResult)
             orderedContent.append(.toolResult(toolResult))
         case let .toolApprovalRequest(approvalRequest):

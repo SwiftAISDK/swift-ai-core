@@ -45,9 +45,14 @@ public final class AISteeringReceipt: @unchecked Sendable {
 
 struct AISteeringDeliveredMessage: Sendable { var id: String; var message: AIMessage }
 
-/// Adds user messages at model-step boundaries. One object belongs to one run.
+/// Adds user messages at model-step boundaries or interrupts a pre-output model call.
+/// One object belongs to one run.
 public final class AISteering: @unchecked Sendable {
     private struct Pending { var id: String; var message: AIMessage; var receipt: AISteeringReceipt }
+    private struct InterruptWatcher {
+        let id: UUID
+        let notify: @Sendable () -> Void
+    }
     private enum State { case idle, running, ended }
     private let lock = NSLock()
     private var state: State = .idle
@@ -55,13 +60,24 @@ public final class AISteering: @unchecked Sendable {
     private var queued: [Pending] = []
     private var taken: [Pending] = []
     private var receipts: [String: AISteeringReceipt] = [:]
+    private var interruptRequested = false
+    private var interruptWatcher: InterruptWatcher?
     fileprivate init() {}
 
     public func steer(_ text: String, id: String? = nil) -> AISteeringReceipt {
-        enqueue(.user(text), id: id)
+        steer(text, id: id, interrupt: false)
+    }
+    /// Restarts the current model call in the same step when it has yet to produce output.
+    /// After output starts, the message waits for the next step boundary.
+    public func steer(_ text: String, id: String? = nil, interrupt: Bool) -> AISteeringReceipt {
+        enqueue(.user(text), id: id, interrupt: interrupt)
     }
     public func steer(content: [AIContentPart], providerMetadata: [String: JSONValue] = [:], id: String? = nil) -> AISteeringReceipt {
-        enqueue(AIMessage(role: .user, content: content, providerMetadata: providerMetadata), id: id)
+        steer(content: content, providerMetadata: providerMetadata, id: id, interrupt: false)
+    }
+    /// The structured-content form of `steer(_:id:interrupt:)`.
+    public func steer(content: [AIContentPart], providerMetadata: [String: JSONValue] = [:], id: String? = nil, interrupt: Bool) -> AISteeringReceipt {
+        enqueue(AIMessage(role: .user, content: content, providerMetadata: providerMetadata), id: id, interrupt: interrupt)
     }
     public func queue(_ text: String, id: String? = nil) -> AISteeringReceipt {
         enqueue(.user(text), id: id, queued: true)
@@ -69,17 +85,27 @@ public final class AISteering: @unchecked Sendable {
     public func queue(content: [AIContentPart], providerMetadata: [String: JSONValue] = [:], id: String? = nil) -> AISteeringReceipt {
         enqueue(AIMessage(role: .user, content: content, providerMetadata: providerMetadata), id: id, queued: true)
     }
-    private func enqueue(_ message: AIMessage, id: String?, queued: Bool = false) -> AISteeringReceipt {
-        lock.withLock {
+    private func enqueue(_ message: AIMessage, id: String?, queued: Bool = false, interrupt: Bool = false) -> AISteeringReceipt {
+        var notify: (@Sendable () -> Void)?
+        let receipt = lock.withLock {
             let id = id ?? "steer-\(UUID().uuidString)"
             if let existing = receipts[id] { return existing }
             let receipt = AISteeringReceipt()
             receipts[id] = receipt
             if state == .ended { receipt.resolve(.notDelivered(id: id, message: message, reason: .finished)) }
             else if queued { self.queued.append(Pending(id: id, message: message, receipt: receipt)) }
-            else { pending.append(Pending(id: id, message: message, receipt: receipt)) }
+            else {
+                pending.append(Pending(id: id, message: message, receipt: receipt))
+                if interrupt {
+                    notify = interruptWatcher?.notify
+                    interruptWatcher = nil
+                    interruptRequested = notify == nil
+                }
+            }
             return receipt
         }
+        notify?()
+        return receipt
     }
     func start() throws {
         try lock.withLock {
@@ -99,8 +125,29 @@ public final class AISteering: @unchecked Sendable {
     func takeMessages() -> [AIMessage] {
         lock.withLock {
             guard state == .running else { return [] }
-            taken.append(contentsOf: pending); pending.removeAll()
+            taken.append(contentsOf: pending)
+            pending.removeAll()
+            interruptRequested = false
             return taken.map(\.message)
+        }
+    }
+    func watchInterrupt(_ notify: @escaping @Sendable () -> Void) -> @Sendable () -> Void {
+        let id = UUID()
+        let notifyImmediately = lock.withLock {
+            guard state == .running else { return false }
+            if interruptRequested {
+                interruptRequested = false
+                return true
+            }
+            interruptWatcher = InterruptWatcher(id: id, notify: notify)
+            return false
+        }
+        if notifyImmediately { notify() }
+        return { [weak self] in
+            guard let self else { return }
+            lock.withLock {
+                if interruptWatcher?.id == id { interruptWatcher = nil }
+            }
         }
     }
     func resolveTakenMessages(stepNumber: Int, sentMessages: [AIMessage]) -> [AISteeringDeliveredMessage] {
@@ -118,11 +165,81 @@ public final class AISteering: @unchecked Sendable {
         let messages = lock.withLock { () -> [Pending] in
             guard state == .running else { return [] }
             state = .ended
+            interruptWatcher = nil
+            interruptRequested = false
             defer { pending.removeAll(); taken.removeAll(); queued.removeAll() }
             return taken + pending + queued
         }
         for item in messages { item.receipt.resolve(.notDelivered(id: item.id, message: item.message, reason: reason)) }
     }
+}
+
+struct AISteeringInterruptedAttempt: Error {}
+
+/// Holds the interrupt window and the provider-only signal for one model attempt.
+final class AISteeringModelAttempt: @unchecked Sendable {
+    private enum State { case waiting, interrupted, closed }
+
+    private let lock = NSLock()
+    private let steering: AISteering
+    private let controller = AIAbortController()
+    private let baseSignal: AIAbortSignal?
+    private var baseAbortRegistration: AIAbortHandlerRegistration?
+    private var stopWatching: (@Sendable () -> Void)?
+    private var state: State = .waiting
+
+    init(steering: AISteering, baseSignal: AIAbortSignal?) {
+        self.steering = steering
+        self.baseSignal = baseSignal
+        baseAbortRegistration = baseSignal?.addAbortHandler { [weak controller, weak baseSignal] reason in
+            controller?.abort(reason: reason, reasonName: baseSignal?.reasonName)
+        }
+    }
+
+    var signal: AIAbortSignal { controller.signal }
+    var isInterrupted: Bool { lock.withLock { state == .interrupted } }
+
+    func cancel() {
+        controller.abort(reason: "The model call was cancelled.")
+    }
+
+    func watch() {
+        guard lock.withLock({ state == .waiting && stopWatching == nil }) else { return }
+        let stop = steering.watchInterrupt { [weak self] in self?.interrupt() }
+        lock.withLock { stopWatching = stop }
+    }
+
+    func closeWindow() {
+        let stop = lock.withLock {
+            if state == .waiting { state = .closed }
+            defer { stopWatching = nil }
+            return stopWatching
+        }
+        stop?()
+    }
+
+    func checkForInterrupt() throws {
+        if isInterrupted { throw AISteeringInterruptedAttempt() }
+    }
+
+    func shouldRedo() throws -> Bool {
+        closeWindow()
+        guard isInterrupted else { return false }
+        try Task.checkCancellation()
+        try baseSignal?.throwIfAborted()
+        return true
+    }
+
+    private func interrupt() {
+        let shouldAbort = lock.withLock {
+            guard state == .waiting else { return false }
+            state = .interrupted
+            return true
+        }
+        if shouldAbort { controller.abort(reason: "The model call was interrupted by steering.") }
+    }
+
+    deinit { stopWatching?() }
 }
 
 extension AI {

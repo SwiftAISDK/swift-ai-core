@@ -3,11 +3,13 @@ import Testing
 @testable import SwiftAI
 import SwiftAIProvider
 import SwiftAIProviderUtilities
+import SwiftAITransport
 
 private actor November14Telemetry: Telemetry.Integration {
     var events: [Telemetry.Event] = []
     var resultBodies: [JSONValue?] = []
     var errorBodies: [JSONValue?] = []
+    var downloadErrors: [AIDownloadError] = []
     func record(_ event: Telemetry.Event) { events.append(event) }
     func executeLanguageModelCall<Output: Sendable>(_ context: Telemetry.LanguageModelCallContext<Output>) async throws -> Output {
         do {
@@ -16,6 +18,7 @@ private actor November14Telemetry: Telemetry.Integration {
             return result
         } catch {
             if let error = error as? AIError, case let .apiCall(call) = error { errorBodies.append(call.requestBody) }
+            if let download = error as? AIDownloadError { downloadErrors.append(download) }
             throw error
         }
     }
@@ -73,5 +76,22 @@ struct Weekly20261114TelemetryTests {
         #expect(redacted["messages"] == input["messages"])
         #expect(redacted["runtimeContext"] == input["runtimeContext"])
         #expect(input["tools"]?["tool"]?["args"]?["secret"] == "credential")
+    }
+
+    @Test func telemetryIntegrationsReceiveRedactedDownloadErrorAndApplicationReceivesOriginal() async {
+        let recorder = November14Telemetry()
+        let url = "https://files.example.com/invoice.pdf?X-Amz-Signature=secret"
+        let original = AIDownloadError(url: url, message: "Payload too large for \(url)")
+        let dispatcher = TelemetryDispatcher(options: .init(integrations: [recorder]))
+        await #expect(throws: original) {
+            let _: JSONValue = try await dispatcher.executeLanguageModelCall(callID: "call-1",
+                operationID: "ai.generateText", providerID: "mock", modelID: "mock") {
+                throw original
+            }
+        }
+        let delivered = await recorder.downloadErrors
+        #expect(delivered == [.init(url: "[redacted]", message: "Failed to download a file.")])
+        #expect(!String(describing: delivered).contains("secret"))
+        #expect(original.url.contains("secret"))
     }
 }

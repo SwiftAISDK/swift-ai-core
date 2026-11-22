@@ -4,7 +4,7 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 
 
-private let aiBatchUserAgent = "ai/7.0.173"
+private let aiBatchUserAgent = "ai/7.0.179"
 
 extension AI {
     /// Starts a provider-owned Batch V4 operation. Unlike the legacy text-only
@@ -18,6 +18,55 @@ extension AI {
         webhookURL: String? = nil,
         abortSignal: AIAbortSignal? = nil,
         timeoutNanoseconds: UInt64? = nil
+    ) async throws -> StartBatchResult {
+        try await startProviderBatch(
+            provider: provider,
+            requests: requests,
+            responseFormat: nil,
+            providerOptions: providerOptions,
+            headers: headers,
+            idempotencyKey: idempotencyKey,
+            webhookURL: webhookURL,
+            abortSignal: abortSignal,
+            timeoutNanoseconds: timeoutNanoseconds
+        )
+    }
+
+    /// Starts a batch with the output specification's response format on every text request.
+    public static func startBatch<FinalOutput: Sendable, PartialOutput: Sendable>(
+        provider: any AIBatchProvider,
+        requests: [AIBatchRequest],
+        output: AIOutput<FinalOutput, PartialOutput>,
+        providerOptions: [String: JSONValue] = [:],
+        headers: [String: String] = [:],
+        idempotencyKey: String? = nil,
+        webhookURL: String? = nil,
+        abortSignal: AIAbortSignal? = nil,
+        timeoutNanoseconds: UInt64? = nil
+    ) async throws -> StartBatchResult {
+        try await startProviderBatch(
+            provider: provider,
+            requests: requests,
+            responseFormat: batchResponseFormat(for: output),
+            providerOptions: providerOptions,
+            headers: headers,
+            idempotencyKey: idempotencyKey,
+            webhookURL: webhookURL,
+            abortSignal: abortSignal,
+            timeoutNanoseconds: timeoutNanoseconds
+        )
+    }
+
+    private static func startProviderBatch(
+        provider: any AIBatchProvider,
+        requests: [AIBatchRequest],
+        responseFormat: AIResponseFormat?,
+        providerOptions: [String: JSONValue],
+        headers: [String: String],
+        idempotencyKey: String?,
+        webhookURL: String?,
+        abortSignal: AIAbortSignal?,
+        timeoutNanoseconds: UInt64?
     ) async throws -> StartBatchResult {
         try validateBatchRequests(requests)
         let operationAbortSignal = try batchOperationAbortSignal(
@@ -40,6 +89,9 @@ extension AI {
                 }
                 text.modelID = modelID
                 text.request = try prepareLanguageModelCallOptions(text.request)
+                if let responseFormat {
+                    text.request.responseFormat = responseFormat
+                }
                 for (toolName, definition) in text.request.tools {
                     if let previous = toolsByName[toolName], previous != definition {
                         throw AIError.invalidArgument(
@@ -182,6 +234,65 @@ extension AI {
         timeoutNanoseconds: UInt64? = nil,
         retryPolicy: AIRetryPolicy = .default
     ) throws -> AsyncThrowingStream<BatchItemResult, Error> {
+        try getProviderBatchResults(
+            provider: provider,
+            batch: batch,
+            providerOptions: providerOptions,
+            headers: headers,
+            abortSignal: abortSignal,
+            timeoutNanoseconds: timeoutNanoseconds,
+            retryPolicy: retryPolicy
+        ) { item, signal in
+            try await convertBatchItemResult(item, providerID: provider.providerID, abortSignal: signal)
+        }
+    }
+
+    /// Parses each successful text item with the output specification used to start the batch.
+    public static func getBatchResults<FinalOutput: Sendable, PartialOutput: Sendable>(
+        provider: any AIBatchProvider,
+        batch: AIBatchReference,
+        output: AIOutput<FinalOutput, PartialOutput>,
+        providerOptions: [String: JSONValue] = [:],
+        headers: [String: String] = [:],
+        abortSignal: AIAbortSignal? = nil,
+        timeoutNanoseconds: UInt64? = nil,
+        retryPolicy: AIRetryPolicy = .default
+    ) throws -> AsyncThrowingStream<BatchOutputItemResult<FinalOutput>, Error> {
+        let responseFormat = batchResponseFormat(for: output)
+        return try getProviderBatchResults(
+            provider: provider,
+            batch: batch,
+            providerOptions: providerOptions,
+            headers: headers,
+            abortSignal: abortSignal,
+            timeoutNanoseconds: timeoutNanoseconds,
+            retryPolicy: retryPolicy
+        ) { item, signal in
+            switch item {
+            case let .text(result):
+                return .text(try await convertTextBatchOutputResult(
+                    result,
+                    providerID: provider.providerID,
+                    output: output,
+                    responseFormat: responseFormat,
+                    abortSignal: signal
+                ))
+            case let .image(result):
+                return .image(convertImageBatchItemResult(result))
+            }
+        }
+    }
+
+    private static func getProviderBatchResults<Item: Sendable>(
+        provider: any AIBatchProvider,
+        batch: AIBatchReference,
+        providerOptions: [String: JSONValue],
+        headers: [String: String],
+        abortSignal: AIAbortSignal?,
+        timeoutNanoseconds: UInt64?,
+        retryPolicy: AIRetryPolicy,
+        convert: @escaping @Sendable (AIBatchV4ItemResult, AIAbortSignal?) async throws -> Item
+    ) throws -> AsyncThrowingStream<Item, Error> {
         try validateBatchReference(batch, provider: provider)
         let streamAbortController = AIAbortController()
         let signal = try batchOperationAbortSignal(
@@ -203,11 +314,7 @@ extension AI {
                     for try await item in stream {
                         try Task.checkCancellation()
                         try signal?.throwIfAborted()
-                        continuation.yield(try await convertBatchItemResult(
-                            item,
-                            providerID: provider.providerID,
-                            abortSignal: signal
-                        ))
+                        continuation.yield(try await convert(item, signal))
                     }
                     continuation.finish()
                 } catch {
@@ -526,26 +633,32 @@ private func convertBatchItemResult(
             abortSignal: abortSignal
         ))
     case let .image(result):
-        switch result {
-        case let .succeeded(id, value):
-            return .image(.succeeded(
-                id: id,
-                result: ImageBatchGenerationResult(
-                    urls: value.urls,
-                    base64Images: value.base64Images,
-                    warnings: value.warnings,
-                    usage: value.usage,
-                    response: value.responseMetadata,
-                    providerMetadata: value.providerMetadata
-                )
-            ))
-        case let .failed(id, error, metadata):
-            return .image(.failed(id: id, error: error, providerMetadata: metadata))
-        case let .cancelled(id, error, metadata):
-            return .image(.cancelled(id: id, error: error, providerMetadata: metadata))
-        case let .expired(id, error, metadata):
-            return .image(.expired(id: id, error: error, providerMetadata: metadata))
-        }
+        return .image(convertImageBatchItemResult(result))
+    }
+}
+
+private func convertImageBatchItemResult(
+    _ result: AIBatchItemResult<ImageGenerationResult>
+) -> ImageBatchItemResult {
+    switch result {
+    case let .succeeded(id, value):
+        return .succeeded(
+            id: id,
+            result: ImageBatchGenerationResult(
+                urls: value.urls,
+                base64Images: value.base64Images,
+                warnings: value.warnings,
+                usage: value.usage,
+                response: value.responseMetadata,
+                providerMetadata: value.providerMetadata
+            )
+        )
+    case let .failed(id, error, metadata):
+        return .failed(id: id, error: error, providerMetadata: metadata)
+    case let .cancelled(id, error, metadata):
+        return .cancelled(id: id, error: error, providerMetadata: metadata)
+    case let .expired(id, error, metadata):
+        return .expired(id: id, error: error, providerMetadata: metadata)
     }
 }
 
@@ -624,31 +737,39 @@ private func convertTextBatchItemResult(
 ) async throws -> TextBatchItemResult {
     switch item {
     case let .succeeded(id, providerResult):
-        let result = try await materializeGeneratedFiles(
-            in: providerResult,
-            abortSignal: abortSignal
+        let result = try await materializeGeneratedFiles(in: providerResult, abortSignal: abortSignal)
+        return .succeeded(id: id, result: textBatchGenerationResult(from: result, providerID: providerID))
+    case let .failed(id, error, providerMetadata):
+        return .failed(id: id, error: error, providerMetadata: providerMetadata)
+    case let .cancelled(id, error, providerMetadata):
+        return .cancelled(id: id, error: error, providerMetadata: providerMetadata)
+    case let .expired(id, error, providerMetadata):
+        return .expired(id: id, error: error, providerMetadata: providerMetadata)
+    }
+}
+
+private func convertTextBatchOutputResult<FinalOutput: Sendable, PartialOutput: Sendable>(
+    _ item: AIBatchItemResult<TextGenerationResult>,
+    providerID: String,
+    output: AIOutput<FinalOutput, PartialOutput>,
+    responseFormat: AIResponseFormat?,
+    abortSignal: AIAbortSignal?
+) async throws -> AIBatchItemResult<TextBatchOutputResult<FinalOutput>> {
+    switch item {
+    case let .succeeded(id, providerResult):
+        var result = try await materializeGeneratedFiles(in: providerResult, abortSignal: abortSignal)
+        let generation = textBatchGenerationResult(from: result, providerID: providerID)
+        result.text = generation.text
+        result.usage = generation.usage
+        let parsedOutput = await parseBatchOutput(
+            from: result,
+            output: output,
+            responseFormat: responseFormat,
+            providerID: providerID
         )
-        let response = result.responseMetadata == AIResponseMetadata() ? nil : result.responseMetadata
-        var usage = result.usage ?? TokenUsage()
-        if usage.totalTokens == nil,
-           let inputTokens = usage.inputTokens,
-           let outputTokens = usage.outputTokens {
-            usage.totalTokens = inputTokens + outputTokens
-        }
-        return .succeeded(id: id, result: TextBatchGenerationResult(
-            text: result.content.compactMap { part in
-                guard let text = part.textValue else { return nil }
-                return text
-            }.joined(),
-            content: result.content,
-            finishReason: result.finishReason,
-            rawFinishReason: textBatchRawFinishReason(
-                from: result.rawValue,
-                providerID: providerID
-            ),
-            usage: usage,
-            response: response,
-            providerMetadata: result.providerMetadata
+        return .succeeded(id: id, result: TextBatchOutputResult(
+            generation: generation,
+            parsedOutput: parsedOutput
         ))
     case let .failed(id, error, providerMetadata):
         return .failed(id: id, error: error, providerMetadata: providerMetadata)
@@ -656,6 +777,68 @@ private func convertTextBatchItemResult(
         return .cancelled(id: id, error: error, providerMetadata: providerMetadata)
     case let .expired(id, error, providerMetadata):
         return .expired(id: id, error: error, providerMetadata: providerMetadata)
+    }
+}
+
+private func textBatchGenerationResult(
+    from result: TextGenerationResult,
+    providerID: String
+) -> TextBatchGenerationResult {
+    let response = result.responseMetadata == AIResponseMetadata() ? nil : result.responseMetadata
+    var usage = result.usage ?? TokenUsage()
+    if usage.totalTokens == nil,
+       let inputTokens = usage.inputTokens,
+       let outputTokens = usage.outputTokens {
+        usage.totalTokens = inputTokens + outputTokens
+    }
+    return TextBatchGenerationResult(
+        text: result.content.compactMap(\.textValue).joined(),
+        content: result.content,
+        finishReason: result.finishReason,
+        rawFinishReason: textBatchRawFinishReason(from: result.rawValue, providerID: providerID),
+        usage: usage,
+        response: response,
+        providerMetadata: result.providerMetadata
+    )
+}
+
+private func batchResponseFormat<FinalOutput: Sendable, PartialOutput: Sendable>(
+    for output: AIOutput<FinalOutput, PartialOutput>
+) -> AIResponseFormat? {
+    output.requestForOutput(LanguageModelRequest(messages: []), nil).responseFormat
+}
+
+private func parseBatchOutput<FinalOutput: Sendable, PartialOutput: Sendable>(
+    from result: TextGenerationResult,
+    output: AIOutput<FinalOutput, PartialOutput>,
+    responseFormat: AIResponseFormat?,
+    providerID: String
+) async -> Result<FinalOutput, AIBatchError> {
+    let missingOutput = AIBatchError(message: "No output generated.", type: "AI_NoOutputGeneratedError")
+    guard result.finishReason == "stop" || (result.finishReason != "tool-calls" && !result.text.isEmpty) else {
+        return .failure(missingOutput)
+    }
+    if case .json? = responseFormat {
+        // Batch JSON must parse as a complete response before typed schema validation.
+        let text = result.structuredOutputText ?? result.text
+        guard (try? secureJSONParse(text)) != nil else {
+            return .failure(AIBatchError(
+                message: "No object generated: could not parse the response.",
+                type: "AI_NoObjectGeneratedError"
+            ))
+        }
+    }
+    do {
+        let parsed = try await output.optionalResultFromTextResult(result, providerID, nil)
+        guard let value = parsed.output else { return .failure(missingOutput) }
+        return .success(value)
+    } catch is AIObjectGenerationError {
+        return .failure(AIBatchError(
+            message: "No object generated: response did not match schema.",
+            type: "AI_NoObjectGeneratedError"
+        ))
+    } catch {
+        return .failure(AIBatchError(message: String(describing: error), type: "Error"))
     }
 }
 

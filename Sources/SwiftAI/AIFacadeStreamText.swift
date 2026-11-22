@@ -18,7 +18,9 @@ extension AI {
         onError: AIGenerationOnError? = nil,
         onAbort: AIStreamTextOnAbort? = nil,
         stepNumber: Int = 0,
-        reportsStepErrors: Bool = true
+        reportsStepErrors: Bool = true,
+        steeringAttempt: AISteeringModelAttempt? = nil,
+        modelCallTelemetry: Telemetry.Options? = nil
     ) -> AsyncThrowingStream<StreamTextTelemetryPart, Error> {
         let preparedRequest: LanguageModelRequest
         do {
@@ -98,7 +100,7 @@ extension AI {
             : nil
         var requestWithTimeoutSignals = preparedRequest
         requestWithTimeoutSignals.abortSignal = mergeAbortSignals(
-            preparedRequest.abortSignal,
+            steeringAttempt?.signal ?? preparedRequest.abortSignal,
             totalTimeoutController?.signal,
             stepTimeoutController?.signal,
             semanticTimeoutController?.signal
@@ -119,6 +121,8 @@ extension AI {
                     in: attemptRequest,
                     supportedURLs: model.supportedURLs
                 )
+                if steeringAttempt != nil { try request.abortSignal?.throwIfAborted() }
+                steeringAttempt?.watch()
                 let stream = streamWithAbortSignal(
                     model.stream(downloadedRequest),
                     abortSignal: downloadedRequest.abortSignal
@@ -171,7 +175,9 @@ extension AI {
                 },
                 onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
                 onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: [], reason: request.abortSignal?.reason ?? error.map { String(describing: $0) })) },
-                reportsStepErrors: reportsStepErrors
+                reportsStepErrors: reportsStepErrors,
+                steeringAttempt: steeringAttempt,
+                modelCallTelemetry: modelCallTelemetry
         )
         let stepTimedStream = streamWithTimeout(
             retriedStream,
@@ -424,103 +430,101 @@ extension AI {
                             }
                         }
 
-                        let steeringMessages = experimentalSteering?.takeMessages() ?? []
-                        stepCurrentRequest.messages.append(contentsOf: steeringMessages)
-                        var stepContext = AIPrepareStepContext(
-                            model: model,
-                            stepNumber: index,
-                            steps: steps,
-                            request: stepCurrentRequest,
-                            initialRequest: initialRequest,
-                            responseMessages: responseMessages
-                        )
-                        stepContext.experimentalSteeringMessages = steeringMessages
-                        let prepared = try await prepareStep?(stepContext)
-                        try stepDeadline.throwIfTimedOut()
-                        let stepModel = prepared?.model ?? model
-                        let stepTools = prepared?.executableTools ?? executableTools
-                        let preparedTools = try await toolDiscovery.prepare(tools: stepTools, routing: toolCallers)
-                        let executionTools = preparedTools.executionTools
-                        var modelToolsByName = try toolsByName(from: preparedTools.modelTools)
-                        let directExecutionTools = executionTools.filter {
-                            modelToolsByName[$0.name] != nil
-                        }
-                        let executionToolsByName = try toolsByName(from: directExecutionTools)
-                        var stepRequest = try prepareLanguageModelCallOptions(
-                            prepared?.request ?? stepCurrentRequest
-                        )
-                        stepRequest.toolCallConcurrency = stepRequest.toolCallConcurrency ?? initialRequest.toolCallConcurrency
-                        if stepRequest.abortSignal === operationRequest.abortSignal {
-                            stepRequest.abortSignal = mergeAbortSignals(
-                                stepRequest.abortSignal,
-                                stepDeadline.signal
-                            )
-                        } else {
-                            stepRequest.abortSignal = mergeAbortSignals(
-                                stepRequest.abortSignal,
-                                operationRequest.abortSignal,
-                                stepDeadline.signal
-                            )
-                        }
-                        stepRequest.messages = appendToolCallerMessages(
-                            stepRequest.messages,
-                            additions: preparedTools.callerMessages
-                        )
-                        if prepared?.executableTools != nil {
-                            stepRequest.tools = toolsDictionary(from: preparedTools.modelTools)
-                        } else {
-                            stepRequest.tools.merge(toolsDictionary(from: preparedTools.modelTools)) { _, typed in typed }
-                        }
-
-                        let schemaOnlyToolNames: Set<String> = experimentalSteering == nil ? [] : Set(stepRequest.tools.keys).subtracting(executionToolsByName.keys)
-                        if experimentalSteering != nil {
-                            modelToolsByName = modelValidationTools(stepRequest.tools, explicit: modelToolsByName)
-                        }
-                        await toolTelemetry.recordStepStart(
-                            index: index,
-                            maxSteps: maxSteps,
-                            model: stepModel,
-                            request: stepRequest,
-                            tools: executionTools
-                        )
-                        try stepDeadline.throwIfTimedOut()
-                        let deliveredSteeringMessages = experimentalSteering?.resolveTakenMessages(stepNumber: index, sentMessages: stepRequest.messages) ?? []
-                        for delivered in deliveredSteeringMessages {
-                            continuation.yield(.steeringMessage(id: delivered.id, message: delivered.message, stepNumber: index))
-                        }
-                        let previousSteps = steps
-                        let step = try await forwardLanguageStream(
-                            streamTextParts(
-                                model: stepModel,
-                                request: stepRequest,
-                                timeout: timeout.map {
-                                    AIStreamTimeoutConfiguration(
-                                        firstChunkNanoseconds: $0.firstChunkNanoseconds,
-                                        chunkNanoseconds: $0.chunkNanoseconds
-                                    )
-                                },
-                                retryPolicy: retryPolicy,
-                                streamRetries: streamRetries,
-                                telemetry: nil,
-                                logWarnings: true,
-                                onStepError: { event in
-                                    var event = event
-                                    event.steps = previousSteps
-                                    try? await onStepError?(event)
-                                    await toolTelemetry.recordStepError(event)
-                                },
+                        var steeringMessages: [AIMessage] = []
+                        var deliveredSteeringMessages: [AISteeringDeliveredMessage] = []
+                        var notifiedStepStart = false
+                        let preparedStep: AIPreparedTextStep
+                        let step: LanguageStreamToolStep
+                        while true {
+                            steeringMessages.append(contentsOf: experimentalSteering?.takeMessages() ?? [])
+                            var stepInput = stepCurrentRequest
+                            stepInput.messages.append(contentsOf: steeringMessages)
+                            var stepContext = AIPrepareStepContext(
+                                model: model,
                                 stepNumber: index,
-                                reportsStepErrors: false
-                            ),
-                            to: continuation,
-                            toolsByName: modelToolsByName,
-                            executionToolsByName: executionToolsByName,
-                            request: stepRequest,
-                            repairToolCall: repairToolCall,
-                            partIDReserver: partIDReserver
-                        )
+                                steps: steps,
+                                request: stepInput,
+                                initialRequest: initialRequest,
+                                responseMessages: responseMessages
+                            )
+                            stepContext.experimentalSteeringMessages = steeringMessages
+                            let prepared = try await prepareTextStep(
+                                stepContext,
+                                prepareStep: prepareStep,
+                                executableTools: executableTools,
+                                toolCallers: toolCallers,
+                                discovery: toolDiscovery,
+                                baseAbortSignal: stepCurrentRequest.abortSignal,
+                                validatesSchemaOnlyTools: experimentalSteering != nil,
+                                normalizeRequest: true
+                            )
+                            if !notifiedStepStart {
+                                await toolTelemetry.recordStepStart(index: index, maxSteps: maxSteps, model: prepared.model, request: prepared.request, tools: prepared.executionTools)
+                                notifiedStepStart = true
+                            }
+                            try stepDeadline.throwIfTimedOut()
+                            if experimentalSteering != nil {
+                                try Task.checkCancellation()
+                                try prepared.request.abortSignal?.throwIfAborted()
+                            }
+                            let delivered = experimentalSteering?.resolveTakenMessages(stepNumber: index, sentMessages: prepared.request.messages) ?? []
+                            deliveredSteeringMessages.append(contentsOf: delivered)
+                            for message in delivered {
+                                continuation.yield(.steeringMessage(id: message.id, message: message.message, stepNumber: index))
+                            }
+
+                            let attempt = experimentalSteering.map { AISteeringModelAttempt(steering: $0, baseSignal: prepared.request.abortSignal) }
+                            let previousSteps = steps
+                            do {
+                                step = try await withTaskCancellationHandler {
+                                    try await forwardLanguageStream(
+                                        streamTextParts(
+                                            model: prepared.model,
+                                            request: prepared.request,
+                                            timeout: timeout.map {
+                                                AIStreamTimeoutConfiguration(
+                                                    firstChunkNanoseconds: $0.firstChunkNanoseconds,
+                                                    chunkNanoseconds: $0.chunkNanoseconds
+                                                )
+                                            },
+                                            retryPolicy: retryPolicy,
+                                            streamRetries: streamRetries,
+                                            telemetry: nil,
+                                            logWarnings: true,
+                                            onStepError: { event in
+                                                var event = event
+                                                event.steps = previousSteps
+                                                try? await onStepError?(event)
+                                                await toolTelemetry.recordStepError(event)
+                                            },
+                                            stepNumber: index,
+                                            reportsStepErrors: false,
+                                            steeringAttempt: attempt,
+                                            modelCallTelemetry: attempt == nil ? nil : telemetry
+                                        ),
+                                        to: continuation,
+                                        toolsByName: prepared.modelToolsByName,
+                                        executionToolsByName: prepared.executionToolsByName,
+                                        request: prepared.request,
+                                        repairToolCall: repairToolCall,
+                                        partIDReserver: partIDReserver
+                                    )
+                                } onCancel: {
+                                    attempt?.cancel()
+                                }
+                                preparedStep = prepared
+                                break
+                            } catch is AISteeringInterruptedAttempt {
+                                try stepDeadline.throwIfTimedOut()
+                                guard try attempt?.shouldRedo() == true else { throw AISteeringInterruptedAttempt() }
+                            }
+                        }
+                        let stepModel = preparedStep.model
+                        let stepRequest = preparedStep.request
+                        let executionToolsByName = preparedStep.executionToolsByName
+                        let schemaOnlyToolNames = preparedStep.schemaOnlyToolNames
                         try stepDeadline.throwIfTimedOut()
-                        try operationRequest.abortSignal?.throwIfAborted()
+                        try stepRequest.abortSignal?.throwIfAborted()
                         try Task.checkCancellation()
                         try validateEnforcedToolChoice(
                             stepRequest.toolChoice,
@@ -638,6 +642,7 @@ extension AI {
                             toolsByName: executionToolsByName,
                             request: stepRequest,
                             toolApproval: toolApproval,
+                            toolApprovalSecret: toolApprovalSecret,
                             repairToolCall: repairToolCall,
                             telemetry: toolTelemetry,
                             stepIndex: index,
@@ -725,7 +730,8 @@ extension AI {
             logWarnings: false,
             onError: { error in try? await onError?(AIGenerationErrorEvent(error: error)) },
             onAbort: { error in try? await onAbort?(AIStreamTextAbortEvent(steps: stepResults.steps, reason: operationRequest.abortSignal?.reason ?? error.map { String(describing: $0) })) },
-            reportsStepErrors: false
+            reportsStepErrors: false,
+            wrapLanguageModelCall: experimentalSteering == nil
         )
         return streamWithTimeout(
             telemeteredStream,

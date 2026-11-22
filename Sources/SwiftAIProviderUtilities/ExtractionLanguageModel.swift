@@ -71,7 +71,6 @@ public final class AIExtractionLanguageModel: AIExtractionModelV4, Sendable {
         var answers: [String: AIExtractionAnswer] = [:]
         for (index, entry) in entries.enumerated() {
             let (id, field) = entry; var value = object["f\(index)"]!
-            if value == .string("") || value == .array([]) { value = .null }
             func round(_ value: JSONValue) -> JSONValue {
                 guard let decimals = field.decimals, case let .number(number) = value, number.isFinite else { return value }
                 let scale = pow(10, Double(decimals)); return .number((number * scale).rounded() / scale)

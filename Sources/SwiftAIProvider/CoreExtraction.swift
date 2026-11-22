@@ -86,6 +86,16 @@ public protocol AIExtractionModelV4: Sendable {
 }
 public extension AIExtractionModelV4 { var specificationVersion: String { "v4" } }
 public protocol AIExtractionProvider: Sendable { func extractionModel(_ modelID: String) throws -> any AIExtractionModelV4 }
+
+public enum AIExtractionModelReference: Sendable, ExpressibleByStringLiteral {
+    case model(any AIExtractionModelV4)
+    case modelID(String)
+
+    public init(_ model: any AIExtractionModelV4) { self = .model(model) }
+    public init(_ modelID: String) { self = .modelID(modelID) }
+    public init(stringLiteral value: String) { self = .modelID(value) }
+}
+
 public struct AIExtractionRefusalError: Error, Equatable, CustomStringConvertible, Sendable {
     public var fieldIDs: [String]
     public var providerID: String
@@ -104,9 +114,24 @@ public struct AIExtractionUnsupportedFieldTypeError: Error, Equatable, CustomStr
     public var providerID: String
     public var modelID: String
     public var message: String
+    private let wireFieldTypeLabel: String?
+
+    /// The exact provider discriminator, including list item types when supplied.
+    public var fieldTypeLabel: String { wireFieldTypeLabel ?? fieldType.rawValue }
+
     public init(fieldID: String, fieldType: AIExtractionFieldType, providerID: String, modelID: String, message: String? = nil) {
-        self.fieldID = fieldID; self.fieldType = fieldType; self.providerID = providerID; self.modelID = modelID
-        self.message = message ?? "Field \"\(fieldID)\" has type \"\(fieldType.rawValue)\", which is not supported by provider \"\(providerID)\" and model \"\(modelID)\"."
+        self.init(fieldID: fieldID, fieldType: fieldType, providerID: providerID, modelID: modelID,
+                  fieldTypeLabel: fieldType.rawValue, message: message)
+    }
+
+    public init(fieldID: String, fieldType: AIExtractionFieldType, providerID: String, modelID: String,
+                fieldTypeLabel: String, message: String? = nil) {
+        self.fieldID = fieldID
+        self.fieldType = fieldType
+        self.providerID = providerID
+        self.modelID = modelID
+        self.wireFieldTypeLabel = fieldTypeLabel == fieldType.rawValue ? nil : fieldTypeLabel
+        self.message = message ?? "Field \"\(fieldID)\" has type \"\(fieldTypeLabel)\", which is not supported by provider \"\(providerID)\" and model \"\(modelID)\"."
     }
     public var description: String { message }
 }

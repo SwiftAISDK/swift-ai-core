@@ -255,14 +255,90 @@ public final class AICustomProvider: AIFileProvider, AISkillsProvider, AIEvaluat
     private let rerankingModels: [String: any RerankingModel]
     private let evaluationModels: [String: AIEvaluationModelReference]
     private let decisionModels: [String: AIDecisionModelReference]
+    private let extractionModels: [String: AIExtractionModelReference]
     private let filesClient: (any AIFileClient)?
     private let skillsClient: (any AISkillsClient)?
     private let fallbackProvider: (any AIProvider)?
 
     private var decisionModelIDResolver: (@Sendable (String) throws -> any AIDecisionModelV4)?
     private var evaluationModelIDResolver: (@Sendable (String) throws -> any AIEvaluationModelV4)?
+    private let extractionModelIDResolver: (@Sendable (String) throws -> any AIExtractionModelV4)?
 
     public init(
+        providerID: String = "custom",
+        languageModels: [String: any LanguageModel] = [:],
+        embeddingModels: [String: any EmbeddingModel] = [:],
+        imageModels: [String: any ImageModel] = [:],
+        transcriptionModels: [String: any TranscriptionModel] = [:],
+        speechModels: [String: any SpeechModel] = [:],
+        videoModels: [String: any VideoModel] = [:],
+        rerankingModels: [String: any RerankingModel] = [:],
+        decisionModels: [String: AIDecisionModelReference] = [:],
+        evaluationModels: [String: AIEvaluationModelReference] = [:],
+        extractionModels: [String: AIExtractionModelReference],
+        files: (any AIFileClient)? = nil,
+        skills: (any AISkillsClient)? = nil,
+        fallbackProvider: (any AIProvider)? = nil,
+        resolveDecisionModelID: (@Sendable (String) throws -> any AIDecisionModelV4)? = nil,
+        resolveEvaluationModelID: (@Sendable (String) throws -> any AIEvaluationModelV4)? = nil,
+        resolveExtractionModelID: (@Sendable (String) throws -> any AIExtractionModelV4)?
+    ) {
+        self.providerID = providerID
+        self.languageModels = languageModels
+        self.embeddingModels = embeddingModels
+        self.imageModels = imageModels
+        self.transcriptionModels = transcriptionModels
+        self.speechModels = speechModels
+        self.videoModels = videoModels
+        self.rerankingModels = rerankingModels
+        self.evaluationModels = evaluationModels
+        self.decisionModels = decisionModels
+        self.extractionModels = extractionModels
+        self.filesClient = files
+        self.skillsClient = skills
+        self.fallbackProvider = fallbackProvider
+        self.decisionModelIDResolver = resolveDecisionModelID
+        self.evaluationModelIDResolver = resolveEvaluationModelID
+        self.extractionModelIDResolver = resolveExtractionModelID
+
+        var capabilities = fallbackProvider?.supportedCapabilities ?? []
+        if !languageModels.isEmpty { capabilities.insert(.language) }
+        if !embeddingModels.isEmpty { capabilities.insert(.embedding) }
+        if !imageModels.isEmpty { capabilities.insert(.image) }
+        if !transcriptionModels.isEmpty { capabilities.insert(.transcription) }
+        if !speechModels.isEmpty { capabilities.insert(.speech) }
+        if !videoModels.isEmpty { capabilities.insert(.video) }
+        if !rerankingModels.isEmpty { capabilities.insert(.reranking) }
+        if !evaluationModels.isEmpty { capabilities.insert(.evaluation) }
+        if !decisionModels.isEmpty { capabilities.insert(.decision) }
+        if !extractionModels.isEmpty { capabilities.insert(.extraction) }
+        self.supportedCapabilities = capabilities
+    }
+
+    public convenience init(
+        providerID: String = "custom",
+        languageModels: [String: any LanguageModel] = [:],
+        embeddingModels: [String: any EmbeddingModel] = [:],
+        imageModels: [String: any ImageModel] = [:],
+        transcriptionModels: [String: any TranscriptionModel] = [:],
+        speechModels: [String: any SpeechModel] = [:],
+        videoModels: [String: any VideoModel] = [:],
+        rerankingModels: [String: any RerankingModel] = [:],
+        decisionModels: [String: AIDecisionModelReference] = [:],
+        evaluationModels: [String: AIEvaluationModelReference] = [:],
+        extractionModels: [String: AIExtractionModelReference],
+        files: (any AIFileClient)? = nil,
+        skills: (any AISkillsClient)? = nil,
+        fallbackProvider: (any AIProvider)? = nil
+    ) {
+        self.init(providerID: providerID, languageModels: languageModels, embeddingModels: embeddingModels,
+                  imageModels: imageModels, transcriptionModels: transcriptionModels, speechModels: speechModels,
+                  videoModels: videoModels, rerankingModels: rerankingModels, decisionModels: decisionModels,
+                  evaluationModels: evaluationModels, extractionModels: extractionModels, files: files, skills: skills,
+                  fallbackProvider: fallbackProvider, resolveExtractionModelID: nil)
+    }
+
+    public convenience init(
         providerID: String = "custom",
         languageModels: [String: any LanguageModel] = [:],
         embeddingModels: [String: any EmbeddingModel] = [:],
@@ -277,31 +353,11 @@ public final class AICustomProvider: AIFileProvider, AISkillsProvider, AIEvaluat
         skills: (any AISkillsClient)? = nil,
         fallbackProvider: (any AIProvider)? = nil
     ) {
-        self.providerID = providerID
-        self.languageModels = languageModels
-        self.embeddingModels = embeddingModels
-        self.imageModels = imageModels
-        self.transcriptionModels = transcriptionModels
-        self.speechModels = speechModels
-        self.videoModels = videoModels
-        self.rerankingModels = rerankingModels
-        self.evaluationModels = evaluationModels
-        self.decisionModels = decisionModels
-        self.filesClient = files
-        self.skillsClient = skills
-        self.fallbackProvider = fallbackProvider
-
-        var capabilities = fallbackProvider?.supportedCapabilities ?? []
-        if !languageModels.isEmpty { capabilities.insert(.language) }
-        if !embeddingModels.isEmpty { capabilities.insert(.embedding) }
-        if !imageModels.isEmpty { capabilities.insert(.image) }
-        if !transcriptionModels.isEmpty { capabilities.insert(.transcription) }
-        if !speechModels.isEmpty { capabilities.insert(.speech) }
-        if !videoModels.isEmpty { capabilities.insert(.video) }
-        if !rerankingModels.isEmpty { capabilities.insert(.reranking) }
-        if !evaluationModels.isEmpty { capabilities.insert(.evaluation) }
-        if !decisionModels.isEmpty { capabilities.insert(.decision) }
-        self.supportedCapabilities = capabilities
+        self.init(providerID: providerID, languageModels: languageModels, embeddingModels: embeddingModels,
+                  imageModels: imageModels, transcriptionModels: transcriptionModels, speechModels: speechModels,
+                  videoModels: videoModels, rerankingModels: rerankingModels, decisionModels: decisionModels,
+                  evaluationModels: evaluationModels, extractionModels: [:], files: files, skills: skills,
+                  fallbackProvider: fallbackProvider, resolveExtractionModelID: nil)
     }
 
     /// Explicit alias resolvers for applications adapting a default-provider API.
@@ -502,8 +558,20 @@ public final class AICustomProvider: AIFileProvider, AISkillsProvider, AIEvaluat
     }
 
     public func extractionModel(_ modelID: String) throws -> any AIExtractionModelV4 {
+        var referencedID = modelID
+        if let reference = extractionModels[modelID] {
+            switch reference {
+            case let .model(model):
+                return try validateExtractionModelVersion(model)
+            case let .modelID(id):
+                if let extractionModelIDResolver {
+                    return try validateExtractionModelVersion(extractionModelIDResolver(id))
+                }
+                referencedID = id
+            }
+        }
         if let fallback = fallbackProvider as? any AIExtractionProvider {
-            return try validateExtractionModelVersion(fallback.extractionModel(modelID))
+            return try validateExtractionModelVersion(fallback.extractionModel(referencedID))
         }
         throw AIError.unsupportedModel(provider: providerID, capability: .extraction, modelID: modelID)
     }
@@ -706,6 +774,16 @@ extension AIProviders {
 }
 
 public extension AIProviders {
+    static func customProvider(
+        providerID: String = "custom",
+        languageModels: [String: any LanguageModel] = [:],
+        extractionModels: [String: AIExtractionModelReference],
+        fallbackProvider: (any AIProvider)? = nil
+    ) -> AICustomProvider {
+        AICustomProvider(providerID: providerID, languageModels: languageModels, extractionModels: extractionModels,
+                         fallbackProvider: fallbackProvider)
+    }
+
     static func customProvider(
         providerID: String = "custom",
         languageModels: [String: any LanguageModel] = [:],

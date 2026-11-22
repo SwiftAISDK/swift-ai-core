@@ -25,7 +25,7 @@ struct Weekly20261114ExtractionAdapterTests {
         let result = try await model.doExtract(.init(state: [.text("evidence"), .json(["key": 1])], fields: ["__proto__": .init(type: .text), "constructor": .init(type: .number, unit: "USD", decimals: 2), "toString": .init(type: .list, items: .text)], referenceDate: "2026-11-14", maxOutputTokens: 200, reasoning: "low", headers: ["x-test": "yes"], providerOptions: ["mock": ["option": true]]))
         #expect(result.answers["__proto__"]?.value == "Ada")
         #expect(result.answers["constructor"]?.value == 3.14)
-        #expect(result.answers["toString"]?.value == nil)
+        #expect(result.answers["toString"]?.value == JSONValue.array([JSONValue]()))
         let request = try #require(await calls.requests.first)
         #expect(request.reasoning == "low" && request.maxOutputTokens == 200)
         #expect(request.headers == ["x-test": "yes"])
@@ -62,7 +62,7 @@ struct Weekly20261114ExtractionAdapterTests {
         })
         let options = AIExtractionModelV4CallOptions(state: [.text("state")], fields: ["x": .init(type: .text)])
         if kind == "content-filter" { #expect(try await model.doExtract(options).answers["x"]?.type == .refusal) }
-        else if kind == "empty" { #expect(try await model.doExtract(options).answers["x"]?.value == nil) }
+        else if kind == "empty" { #expect(try await model.doExtract(options).answers["x"]?.value == "") }
         else { await #expect(throws: AIError.self) { try await model.doExtract(options) } }
     }
 

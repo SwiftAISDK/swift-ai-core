@@ -71,6 +71,11 @@ func redactedTelemetryEvent(_ event: Telemetry.Event, redactor: AITelemetryRedac
     return copy
 }
 
+func telemetryErrorDescription(_ error: any Error) -> String {
+    if error is AIDownloadError { return "Failed to download a file." }
+    return String(describing: error)
+}
+
 /// Typed telemetry integrations receive sanitized copies and SDK callers get
 /// the original value/error back when the integration forwards that view.
 actor AITelemetryCallViews<Output: Sendable> {
@@ -78,6 +83,7 @@ actor AITelemetryCallViews<Output: Sendable> {
     private var sanitizedResult: TextGenerationResult?
     private var originalError: (any Error)?
     private var sanitizedError: AIError?
+    private var sanitizedDownloadError: AIDownloadError?
 
     func view(_ output: Output, redactor: AITelemetryRedactor) -> Output {
         guard var copy = output as? TextGenerationResult else { return output }
@@ -92,7 +98,14 @@ actor AITelemetryCallViews<Output: Sendable> {
         sanitizedResult = copy
         return (copy as? Output) ?? output
     }
-    func view(_ error: any Error, redactor: AITelemetryRedactor) -> any Error {
+    func view(_ error: any Error, redactor: AITelemetryRedactor?) -> any Error {
+        if error is AIDownloadError {
+            let sanitized = AIDownloadError(url: "[redacted]", message: "Failed to download a file.")
+            originalError = error
+            sanitizedDownloadError = sanitized
+            return sanitized
+        }
+        guard let redactor else { return error }
         originalError = error
         let sanitized: AIError
         if let typed = error as? AIError, case var .apiCall(call) = typed {
@@ -122,6 +135,10 @@ actor AITelemetryCallViews<Output: Sendable> {
         return (copy as? Output) ?? output
     }
     func restore(_ error: any Error) -> any Error {
+        if let originalError, let sanitizedDownloadError,
+           let forwarded = error as? AIDownloadError, sanitizedDownloadError == forwarded {
+            return originalError
+        }
         if let originalError, let sanitizedError, let forwarded = error as? AIError, sanitizedError == forwarded { return originalError }
         return error
     }

@@ -33,7 +33,7 @@ struct TelemetryDispatcher: Sendable {
     func record(_ event: Telemetry.Event) async {
         guard isEnabled else { return }
         var emitted = filteredTelemetryEvent(redactedTelemetryEvent(event, redactor: redactor))
-        emitted.aiVersion = "7.0.173"
+        emitted.aiVersion = "7.0.179"
         for integration in integrations {
             await integration.record(emitted)
         }
@@ -58,8 +58,7 @@ struct TelemetryDispatcher: Sendable {
                 if let providerRedactor { return await views.view(result, redactor: providerRedactor) }
                 return result
             } catch {
-                if let providerRedactor { throw await views.view(error, redactor: providerRedactor) }
-                throw error
+                throw await views.view(error, redactor: providerRedactor)
             }
         }
         for integration in integrations {
@@ -72,7 +71,7 @@ struct TelemetryDispatcher: Sendable {
                     modelID: modelID,
                     execute: innerExecute
                 )
-                context.aiVersion = "7.0.173"
+                context.aiVersion = "7.0.179"
                 return try await integration.executeLanguageModelCall(context)
             }
         }
@@ -100,7 +99,7 @@ struct TelemetryDispatcher: Sendable {
                     toolName: toolName,
                     execute: innerExecute
                 )
-                context.aiVersion = "7.0.173"
+                context.aiVersion = "7.0.179"
                 return try await integration.executeTool(context)
             }
         }
@@ -246,7 +245,7 @@ struct AIToolLoopTelemetryContext: Sendable {
                 "stepNumber": .number(Double(stepIndex)),
                 "toolCall": toolCallTelemetryJSON(call)
             ]),
-            errorDescription: String(describing: error)
+            errorDescription: telemetryErrorDescription(error)
         ))
     }
 

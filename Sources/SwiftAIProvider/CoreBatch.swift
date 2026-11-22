@@ -618,6 +618,31 @@ public enum BatchItemResult: Sendable {
     case image(ImageBatchItemResult)
 }
 
+/// The generation and parsed output of a successful text item.
+public struct TextBatchOutputResult<Output: Sendable>: Sendable {
+    public let generation: TextBatchGenerationResult
+    public let parsedOutput: Result<Output, AIBatchError>
+
+    public init(generation: TextBatchGenerationResult, parsedOutput: Result<Output, AIBatchError>) {
+        self.generation = generation
+        self.parsedOutput = parsedOutput
+    }
+
+    public var output: Output? { try? parsedOutput.get() }
+
+    /// Explains why the successful generation did not produce the requested output.
+    public var outputError: AIBatchError? {
+        guard case let .failure(error) = parsedOutput else { return nil }
+        return error
+    }
+}
+
+/// Normalized provider-owned result when an output specification is requested.
+public enum BatchOutputItemResult<Output: Sendable>: Sendable {
+    case text(AIBatchItemResult<TextBatchOutputResult<Output>>)
+    case image(ImageBatchItemResult)
+}
+
 /// Durable Batch V4 belongs to the provider, allowing each request to select
 /// its own model and modality.
 public protocol AIBatchProvider: Sendable {

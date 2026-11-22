@@ -49,7 +49,7 @@ final class SpeechResultEngine: @unchecked Sendable {
         }
         var observed = request
         observed.abortSignal = controller.signal
-        observed.headers = withUserAgentSuffix(request.headers, "ai/7.0.173")
+        observed.headers = withUserAgentSuffix(request.headers, "ai/7.0.179")
         let callRequest = observed
         setup = Task { [weak self] in
             guard let self else { return }

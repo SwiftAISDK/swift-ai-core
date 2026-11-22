@@ -504,6 +504,9 @@ func isRetryable(_ error: Error) -> Bool {
     if let error = error as? AIAPICallError {
         return error.isRetryable
     }
+    if let error = error as? GatewayError {
+        return error.isRetryable
+    }
     if let error = error as? URLError {
         switch error.code {
         case .cancelled, .userCancelledAuthentication:
@@ -563,6 +566,9 @@ func httpHeaders(from error: Error) -> [String: String]? {
     }
     if let error = error as? AIAPICallError {
         return error.responseHeaders
+    }
+    if let error = error as? GatewayError {
+        return error.headers
     }
     return nil
 }

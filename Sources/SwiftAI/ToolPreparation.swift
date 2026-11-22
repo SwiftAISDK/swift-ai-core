@@ -4,6 +4,61 @@ import SwiftAIProvider
 import SwiftAITransport
 import SwiftAIProviderUtilities
 
+struct AIPreparedTextStep {
+    let model: any LanguageModel
+    let request: LanguageModelRequest
+    let executionTools: [AITool]
+    let executionToolsByName: [String: AITool]
+    let modelToolsByName: [String: AITool]
+    let schemaOnlyToolNames: Set<String>
+}
+
+func prepareTextStep(
+    _ context: AIPrepareStepContext,
+    prepareStep: AIPrepareStep?,
+    executableTools: [AITool],
+    toolCallers: AIToolCallerRouting,
+    discovery: AIToolDiscoveryState,
+    baseAbortSignal: AIAbortSignal?,
+    validatesSchemaOnlyTools: Bool,
+    normalizeRequest: Bool = false
+) async throws -> AIPreparedTextStep {
+    let prepared = try await prepareStep?(context)
+    let tools = try await discovery.prepare(tools: prepared?.executableTools ?? executableTools, routing: toolCallers)
+    var modelTools = try toolsByName(from: tools.modelTools)
+    let directExecutionTools = tools.executionTools.filter { modelTools[$0.name] != nil }
+    let executionToolsByName = try toolsByName(from: directExecutionTools)
+    var request = prepared?.request ?? context.request
+    if normalizeRequest {
+        request = try prepareLanguageModelCallOptions(request)
+    }
+    if request.abortSignal !== baseAbortSignal {
+        request.abortSignal = mergeAbortSignals(request.abortSignal, baseAbortSignal)
+    }
+    request.toolCallConcurrency = request.toolCallConcurrency ?? context.initialRequest.toolCallConcurrency
+    request.messages = appendToolCallerMessages(request.messages, additions: tools.callerMessages)
+    if prepared?.executableTools != nil {
+        request.tools = toolsDictionary(from: tools.modelTools)
+    } else {
+        request.tools.merge(toolsDictionary(from: tools.modelTools)) { _, typed in typed }
+    }
+
+    let schemaOnlyToolNames: Set<String> = validatesSchemaOnlyTools
+        ? Set(request.tools.keys).subtracting(executionToolsByName.keys)
+        : []
+    if validatesSchemaOnlyTools {
+        modelTools = modelValidationTools(request.tools, explicit: modelTools)
+    }
+    return AIPreparedTextStep(
+        model: prepared?.model ?? context.model,
+        request: request,
+        executionTools: tools.executionTools,
+        executionToolsByName: executionToolsByName,
+        modelToolsByName: modelTools,
+        schemaOnlyToolNames: schemaOnlyToolNames
+    )
+}
+
 
 func prepareTools(
     tools: [String: JSONValue]?,
